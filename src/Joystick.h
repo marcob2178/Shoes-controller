@@ -14,7 +14,7 @@ private:
     int ver_min, ver_max, ver_middle, hor_min, hor_max, hor_middle;
 
 public:
-    void calibrate(int _ver_min, int _ver_max, int _ver_middle, int _hor_min, int _hor_max, int _hor_middle)
+    void setCalibrationData(int _ver_min, int _ver_max, int _ver_middle, int _hor_min, int _hor_max, int _hor_middle)
     {
         ver_min = _ver_min;
         ver_max = _ver_max;
@@ -82,43 +82,43 @@ public:
             char mess = Serial.read();
             if (mess == '1')
             {
-                joystick.setVer(0);
-                joystick.setHor(0);
+                setVer(0);
+                setHor(0);
                 for (int i = 0; i <= 100; i++)
                 {
-                    joystick.setVer(i);
+                    setVer(i);
                     delay(30);
                 }
             }
             if (mess == '2')
             {
-                joystick.setVer(0);
-                joystick.setHor(0);
+                setVer(0);
+                setHor(0);
 
                 for (int i = 0; i >= -100; i--)
                 {
-                    joystick.setVer(i);
+                    setVer(i);
                     delay(30);
                 }
             }
             if (mess == '3')
             {
-                joystick.setVer(0);
-                joystick.setHor(0);
+                setVer(0);
+                setHor(0);
 
                 for (int i = 0; i <= 100; i++)
                 {
-                    joystick.setHor(i);
+                    setHor(i);
                     delay(30);
                 }
             }
             if (mess == '4')
             {
-                joystick.setVer(0);
-                joystick.setHor(0);
+                setVer(0);
+                setHor(0);
                 for (int i = 0; i >= -100; i--)
                 {
-                    joystick.setHor(i);
+                    setHor(i);
                     delay(30);
                 }
             }

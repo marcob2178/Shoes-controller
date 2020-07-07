@@ -1,150 +1,77 @@
 #include <Arduino.h>
-
-/*
-
-  Date  : Feb 10, 2020
-
-  Software Requirements:
-  ----------------------
-  -Arduino IDE 1.0
-
-  Hardware Requirements:
-  ----------------------
-  -Arduino
-  -Pressure sensors
-  -Gyroscope
-  -Servo motors
-
-  Project Requirents:
-  -------------------
-  • Game pad controller
-*/
-
-// #include <Adafruit_Sensor.h>
-// #include <Adafruit_BNO055.h>
-// #include <utility/imumaths.h>
-// #include <SoftwareSerial.h>
-
 #include <settings.h>
 #include <joystick.h>
+#include <Accelerometer.h>
+#include <ChestAccel.h>
+#include <WeightSensor.h>
+
+/*  
+
+TODO:
+- add 2nd digipot for crouch and jump
+- define button using for current joystick(it doesn't implemented yet)
+- check bno055 calibration 
+
+*/
 
 Joystick joystick;
-
-// SoftwareSerial mySerial(3, 2);
-
-// #define SensorV 15
-// #define angle1 20
-// #define angle2 87
-// #define Button 4
-
-// const int LOOP_DELAY = 200;
-
-// Adafruit_BNO055 bno1 = Adafruit_BNO055(-1, 0x28);
-// Adafruit_BNO055 bno2 = Adafruit_BNO055(-1, 0x29);
-
-// int speed = 0;
-// int angle = 0;
-// int y1_axis = 0, y2_axis = 0, y3_axis_1, y3_axis_2;
-// int y1_last = 0, y2_last = 0;
-// int y1_thres = 0, y2_thres = 0, y3_thres_1, y3_thres_2;
-// int sensorBL;
-// int sensorBR;
-// int sensorSL;
-// int sensorSR;
-
-// int prev_y1_axis = 0;
-// int y1_hold = 0;
-// unsigned long timer;
-// int start = 0;
-// byte step = 0;
-// String steps, laststep;
-// int freq;
-// int runC;
-// int press1 = 0, press2 = 0;
-// byte pos;
-// int pox;
+ChestAccel chestAccel;
+Accelerometer rightShoeAccel(LEFT_ACCEL_TWI_ADRESS);
+Accelerometer leftShoeAccel(RIGHT_ACCEL_TWI_ADRESS);
+WeightSensor rightSideFoot(Sensor_SR);
+WeightSensor rightBackFoot(Sensor_BR);
+WeightSensor leftSideFoot(Sensor_SL);
+WeightSensor leftBackFoot(Sensor_BL);
 
 void setup()
 {
   Serial.begin(2000000);
-  joystick.calibrate(HORIZONT_MIN,
-                     HORIZONT_MAX,
-                     HORIZONT_MIDDLE,
-                     VERTICAL_MIN,
-                     VERTICAL_MAX,
-                     VERTICAL_MIDDLE);
+
+  delay(500);
+
+  joystick.setCalibrationData(HORIZONT_MIN,
+                              HORIZONT_MAX,
+                              HORIZONT_MIDDLE,
+                              VERTICAL_MIN,
+                              VERTICAL_MAX,
+                              VERTICAL_MIDDLE);
   joystick.begin();
-  delay(1000);
+  rightShoeAccel.begin();
+  leftShoeAccel.begin();
+
   Serial.println("Program started!");
 }
 
 void loop()
 {
+  chestAccel.update();
+  rightShoeAccel.update();
+  leftShoeAccel.update();
+
   
+  Serial.print("\tchest:");
+  Serial.print("\t" + String(chestAccel.getX()));
+  Serial.print("\t" + String(chestAccel.getY()));
+
+  Serial.print("\tright shoe:");
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().x()));
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().y()));
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().z()));
+  Serial.print("\tweight:");
+  Serial.print("\t" + String(rightSideFoot.readRaw()));
+  Serial.print("\t" + String(rightBackFoot.readRaw()));
+
+  Serial.print("\tleft shoe:");
+  Serial.print("\t" + String(leftShoeAccel.getLinAccel().x()));
+  Serial.print("\t" + String(leftShoeAccel.getLinAccel().y()));
+  Serial.print("\t" + String(leftShoeAccel.getLinAccel().z()));
+  Serial.print("\tweight:");
+  Serial.print("\t" + String(leftSideFoot.readRaw()));
+  Serial.println("\t" + String(leftBackFoot.readRaw()));
+
+
+  delay(33);
 }
-
-// void setup()
-// {
-//   Serial.begin(115200);
-//   mySerial.begin(9600);
-//   pinMode(Button, OUTPUT);
-//   digitalWrite(Button, LOW);
-
-//   if (!bno1.begin())
-//   {
-//     Serial.print("Ooops, no BNO055 1 detected ... Check your wiring or I2C ADDR!");
-//     while (1)
-//       ;
-//   }
-
-//   delay(1000);
-
-//   if (!bno2.begin())
-//   {
-//     Serial.print("Ooops, no BNO055 1 detected ... Check your wiring or I2C ADDR!");
-//     while (1)
-//       ;
-//   }
-//   delay(1000);
-
-//   bno1.setExtCrystalUse(true);
-//   bno2.setExtCrystalUse(true);
-//   delay(100);
-
-//   unsigned long timer;
-//   Serial.println("Calibration...");
-//   while (millis() - timer < 10000)
-//   {
-//     imu::Vector<3> euler1 = bno1.getVector(Adafruit_BNO055::VECTOR_EULER);
-//     imu::Vector<3> euler2 = bno2.getVector(Adafruit_BNO055::VECTOR_EULER);
-
-//     y1_thres = euler1.z();
-//     y2_thres = euler2.z();
-//     Serial.print(".");
-//     delay(100);
-//   }
-//   Serial.println("\nDone");
-//   Serial.println(String(y1_thres) + " " + String(y2_thres));
-//   delay(3000);
-// }
-
-// void receiveData()
-// {
-//   if (mySerial.available())
-//   {
-//     String data = mySerial.readStringUntil('\n');
-//     //Serial.println(data);
-//     y3_axis_1 = data.substring(0, data.indexOf(",")).toInt();
-//     data.remove(0, data.indexOf(",") + 1);
-//     y3_axis_2 = data.substring(0, data.indexOf(",")).toInt();
-//     data.remove(0, data.indexOf(",") + 1);
-//     y3_thres_1 = data.substring(0, data.indexOf(",")).toInt();
-//     data.remove(0, data.indexOf(",") + 1);
-//     y3_thres_2 = data.substring(0, data.indexOf(",")).toInt();
-//     data.remove(0, data.indexOf(",") + 1);
-//     pox = data.substring(0, data.length()).toInt();
-//   }
-// }
 
 // void checkV()
 // {
