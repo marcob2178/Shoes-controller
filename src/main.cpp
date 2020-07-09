@@ -24,9 +24,12 @@ Movement recognition:
 - Walk(shoes acceleration + body's angle)
 - Cruise Control (shoes angle)
 
+Detected behavior:
+- Usual shoes angles when walk - 0 .. 30 degrees (roll)
 */
 
 void printAcceleration();
+void printRawValues();
 
 Joystick joystick;
 ChestAccel chestAccel;
@@ -77,6 +80,37 @@ void loop()
 
   delay(33);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//=====================================================================
+//  Prints
+//=====================================================================
 
 void printAcceleration()
 {
