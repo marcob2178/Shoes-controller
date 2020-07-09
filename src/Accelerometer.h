@@ -10,25 +10,17 @@ private:
     imu::Vector<3> euler;
     imu::Vector<3> linaccel;
 
-    void
-    calibrate()
-    {
-        //unsigned long timer;
-        //   Serial.println("Calibration...");
-        //   while (millis() - timer < 10000)
-        //   {
-        //   imu::Vector<3> euler1 = bno1.getVector(Adafruit_BNO055::VECTOR_EULER);
-        //     imu::Vector<3> euler2 = bno2.getVector(Adafruit_BNO055::VECTOR_EULER);
+    double offset_y, offset_z;
 
-        //     y1_thres = euler1.z();
-        //     y2_thres = euler2.z();
-        //     Serial.print(".");
-        //     delay(100);
-        //   }
-        //   Serial.println("\nDone");
-        //   Serial.println(String(y1_thres) + " " + String(y2_thres));
-        //   delay(3000);
-        // }
+    //  x       y       z
+    //  yaw     pitch   roll
+
+    
+
+    void setOffsets(double _offset_y, double _offset_z)
+    {
+        offset_y = _offset_y;
+        offset_z = _offset_z;
     }
 
 public:
@@ -36,6 +28,12 @@ public:
     {
         bno = new Adafruit_BNO055(-1, address);
     };
+
+    void calibrate()
+    {
+        euler = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
+        setOffsets(euler.y(), euler.z());
+    }
 
     void begin()
     {
@@ -56,9 +54,19 @@ public:
         return linaccel;
     }
 
-    imu::Vector<3> getEuler()
+    double getYaw()
     {
-        return euler;
+        return euler.x();
+    }
+
+    double getPitch()
+    {
+        return euler.y() - offset_y;
+    }
+
+    double getRoll()
+    {
+        return euler.z() - offset_z;
     }
 
     void update()

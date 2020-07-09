@@ -9,10 +9,24 @@
 
 TODO:
 - add 2nd digipot for crouch and jump
-- define button using for current joystick(it doesn't implemented yet)
+- define button using for current joystick(it doesn't implemented yet)  
 - check bno055 calibration 
 
+STACK:
+- usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
 */
+
+/* 
+
+Movement recognition:
+- Jump (weight sensord + accelerations)
+- Crouch  (acceleration?)
+- Walk(shoes acceleration + body's angle)
+- Cruise Control (shoes angle)
+
+*/
+
+void printAcceleration();
 
 Joystick joystick;
 ChestAccel chestAccel;
@@ -39,6 +53,17 @@ void setup()
   rightShoeAccel.begin();
   leftShoeAccel.begin();
 
+  Serial.println("Calibrating");
+  unsigned long timer = millis();
+  while (millis() - timer < 2000)
+  {
+    leftShoeAccel.calibrate();
+    rightShoeAccel.calibrate();
+    Serial.print(".");
+    delay(100);
+  }
+  Serial.println("\nDone!");
+
   Serial.println("Program started!");
 }
 
@@ -48,7 +73,34 @@ void loop()
   rightShoeAccel.update();
   leftShoeAccel.update();
 
-  
+  printAcceleration();
+
+  delay(33);
+}
+
+void printAcceleration()
+{
+  Serial.print("\tright shoe:");
+  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().x()));
+  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().y()));
+  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().z()));
+
+  Serial.print("\tyaw: \t" + String(rightShoeAccel.getYaw()));
+  Serial.print("\tpitch: \t" + String(rightShoeAccel.getPitch()));
+  Serial.print("\troll: \t" + String(rightShoeAccel.getRoll()));
+
+  Serial.print("\tleft shoe:");
+  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().x()));
+  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().y()));
+  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().z()));
+
+  Serial.print("\tyaw: \t" + String(leftShoeAccel.getYaw()));
+  Serial.print("\tpitch: \t" + String(leftShoeAccel.getPitch()));
+  Serial.println("\troll: \t" + String(leftShoeAccel.getRoll()));
+}
+
+void printRawValues()
+{
   Serial.print("\tchest:");
   Serial.print("\t" + String(chestAccel.getX()));
   Serial.print("\t" + String(chestAccel.getY()));
@@ -68,9 +120,6 @@ void loop()
   Serial.print("\tweight:");
   Serial.print("\t" + String(leftSideFoot.readRaw()));
   Serial.println("\t" + String(leftBackFoot.readRaw()));
-
-
-  delay(33);
 }
 
 // void checkV()
