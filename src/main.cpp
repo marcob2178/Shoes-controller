@@ -10,26 +10,19 @@
 TODO:
 - add 2nd digipot for crouch and jump
 - define button using for current joystick(it doesn't implemented yet)  
-- check bno055 calibration 
 
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
 */
 
-/* 
-
-Movement recognition:
-- Jump (weight sensord + accelerations)
-- Crouch  (acceleration?)
-- Walk(shoes acceleration + body's angle)
-- Cruise Control (shoes angle)
-
-Detected behavior:
-- Usual shoes angles when walk - 0 .. 30 degrees (roll)
-*/
-
 void printAcceleration();
 void printRawValues();
+void printAccelerationOffset();
+void calculate();
+
+double valX_offcet = 0;
+double valY_offcet = 0;
+double valZ_offcet = 0;
 
 Joystick joystick;
 ChestAccel chestAccel;
@@ -66,71 +59,111 @@ void setup()
     delay(100);
   }
   Serial.println("\nDone!");
-
   Serial.println("Program started!");
+
+  valX_offcet = rightShoeAccel.getLinAccel().x();
+  valY_offcet = rightShoeAccel.getLinAccel().y();
+  valZ_offcet = rightShoeAccel.getLinAccel().z();
 }
 
+long long timer = 0;
 void loop()
 {
-  chestAccel.update();
-  rightShoeAccel.update();
-  leftShoeAccel.update();
+  if (millis() > timer)
+  {
+    timer = millis() + 33;
+    chestAccel.update();
+    rightShoeAccel.update();
+    leftShoeAccel.update();
 
-  printAcceleration();
-
-  delay(33);
+    printAccelerationOffset();
+    calculate();
+    Serial.println("\tLoop time = " + String(int(timer - millis())));
+  }
 }
 
+//=====================================================================
+//  Algorithm
+//=====================================================================
+/* 
 
+Movement recognition:
+- Jump (weight sensord + accelerations)
+- Crouch  (acceleration?)
+- Walk(shoes acceleration + body's angle)
+- Cruise Control (shoes angle)
 
+Detected behavior:
+- Usual shoes angles when walk - 0 .. 30 degrees (roll)
 
+small slow: 20-30% and 20ms
+huge slow: 20-30% and 500ms
+small quick: 70-100% and 20ms
+huge quick: 70-100% and 500ms
 
+also, we need to scale body's bend:
+like 0-45 deg to 0-100%
 
+*/
 
+int processBody()
+{
+  Serial.print("\tbody angle is: \t" + String(chestAccel.getY()));
+  Serial.print("\t" + String(chestAccel.getX()));
+  return map(chestAccel.getY(), 0, -45, 0, 100);
+}
 
+double processSteps()
+{   
+  return 0;
+}
 
+void calculate()
+{
+  int stepsPower = processSteps();
+  int bodyPower = processBody();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  Serial.print("\tbody: \t" + String(bodyPower));
+  Serial.print("\tlegs: \t" + String(stepsPower));
+}
 
 //=====================================================================
 //  Prints
 //=====================================================================
 
-void printAcceleration()
+void printAngles()
 {
   Serial.print("\tright shoe:");
-  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().x()));
-  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().y()));
-  // Serial.print("\t" + String(rightShoeAccel.getLinAccel().z()));
 
   Serial.print("\tyaw: \t" + String(rightShoeAccel.getYaw()));
   Serial.print("\tpitch: \t" + String(rightShoeAccel.getPitch()));
   Serial.print("\troll: \t" + String(rightShoeAccel.getRoll()));
 
   Serial.print("\tleft shoe:");
-  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().x()));
-  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().y()));
-  // Serial.print("\t" + String(leftShoeAccel.getLinAccel().z()));
 
   Serial.print("\tyaw: \t" + String(leftShoeAccel.getYaw()));
   Serial.print("\tpitch: \t" + String(leftShoeAccel.getPitch()));
   Serial.println("\troll: \t" + String(leftShoeAccel.getRoll()));
+}
+
+void printAccelerationOffset()
+{
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().x() - valX_offcet));
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().y() - valY_offcet));
+  Serial.print("\t" + String(rightShoeAccel.getLinAccel().z() - valZ_offcet));
+}
+
+void printAcceleration()
+{
+  Serial.print("\tright shoe:");
+  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().x())));
+  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().y())));
+  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().z())));
+
+  Serial.print("\tleft shoe:");
+  Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().x())));
+  Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().y())));
+  Serial.println("\t" + String((double)(leftShoeAccel.getLinAccel().z())));
 }
 
 void printRawValues()
