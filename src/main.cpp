@@ -23,6 +23,7 @@ void calculate();
 double valX_offcet = 0;
 double valY_offcet = 0;
 double valZ_offcet = 0;
+int coor_x = 0, coor_y = 0;
 
 Joystick joystick;
 ChestAccel chestAccel;
@@ -78,7 +79,22 @@ void loop()
 
     printAccelerationOffset();
     calculate();
-    Serial.println("\tLoop time = " + String(int(timer - millis())));
+
+    if (coor_x >= CHEST_FORWARD_MIN)
+      joystick.setVer(coor_x);
+    else if (coor_x <= -CHEST_BACKWARD_MIN)
+      joystick.setVer(coor_x);    
+    else
+      joystick.setVer(0);
+
+    if (abs(coor_y) > CHEST_LEFT_MIN)
+      joystick.setHor(coor_y);
+    else if (coor_y <= -CHEST_RIGHT_MIN)
+      joystick.setHor(coor_y);
+    else
+      joystick.setHor(0);
+
+    //Serial.println("\tLoop time = " + String(int(timer - millis())));
   }
 }
 
@@ -106,25 +122,53 @@ like 0-45 deg to 0-100%
 
 */
 
-int processBody()
+void processBody()
 {
-  Serial.print("\tbody angle is: \t" + String(chestAccel.getY()));
-  Serial.print("\t" + String(chestAccel.getX()));
-  return map(chestAccel.getY(), 0, -45, 0, 100);
+  Serial.print("\tbody angle is:\t" + String(chestAccel.getPitch()));
+  Serial.print("\t" + String(chestAccel.getRoll()));
+
+  //calculating of forward-backward/vertical movement
+  if (chestAccel.getRoll() < -180)
+  {
+    int roll = chestAccel.getRoll() + 360;
+    coor_x = map(roll, 0, CHEST_BACKWARD_MAX, 0, -100);
+  }
+  else
+    coor_x = map(chestAccel.getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
+
+  if (coor_x > 100)
+    coor_x = 100;
+  if (coor_x < -100)
+    coor_x = -100;
+
+  //calculating of right-left/horizontal movement
+  if (chestAccel.getPitch() < -180)
+  {
+    int pitch = chestAccel.getPitch() + 360;
+    coor_y = map(pitch, 0, CHEST_RIGHT_MAX, 0, 100);
+  }
+  else
+    coor_y = map(chestAccel.getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+
+  if (coor_y > 100)
+    coor_y = 100;
+  if (coor_y < -100)
+    coor_y = -100;
 }
 
 double processSteps()
-{   
+{
   return 0;
 }
 
 void calculate()
 {
   int stepsPower = processSteps();
-  int bodyPower = processBody();
+  processBody();
 
-  Serial.print("\tbody: \t" + String(bodyPower));
-  Serial.print("\tlegs: \t" + String(stepsPower));
+  Serial.print("\tx:\t" + String(coor_x));
+  Serial.println("\ty:\t" + String(coor_y));
+  //Serial.print("\tlegs: \t" + String(stepsPower));
 }
 
 //=====================================================================
@@ -169,8 +213,8 @@ void printAcceleration()
 void printRawValues()
 {
   Serial.print("\tchest:");
-  Serial.print("\t" + String(chestAccel.getX()));
-  Serial.print("\t" + String(chestAccel.getY()));
+  Serial.print("\t" + String(chestAccel.getPitch()));
+  Serial.print("\t" + String(chestAccel.getRoll()));
 
   Serial.print("\tright shoe:");
   Serial.print("\t" + String(rightShoeAccel.getLinAccel().x()));

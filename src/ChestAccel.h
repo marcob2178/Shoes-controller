@@ -19,32 +19,39 @@ public:
         mySerial->begin(9600);
     }
 
-    int getX()
+    int getRoll()
     {
         return roll;
     }
 
-    int getY()
+    int getPitch()
     {
         return pitch;
     }
 
-    double getAccelZ(){
+    double getAccelZ()
+    {
         return accelZ;
     }
 
-    void update()
+    bool update()
     {
         if (mySerial->available())
         {
             String data = mySerial->readStringUntil('\n');
+
+            if (data.length() < 3)
+                return false;
             //Serial.println(data);
             pitch = data.substring(0, data.indexOf(",")).toInt();
             data.remove(0, data.indexOf(",") + 1);
             roll = data.substring(0, data.indexOf(",")).toInt();
             data.remove(0, data.indexOf(",") + 1);
             accelZ = data.substring(0, data.indexOf(",")).toDouble();
+            return true;
         }
+         else 
+         return true;
     }
 };
 

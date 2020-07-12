@@ -5,7 +5,6 @@
 //  Pinout
 //========================================================================
 
-
 #define BUTTON_PIN 4
 #define RIGHT_ACCEL_TWI_ADRESS 0x28
 #define LEFT_ACCEL_TWI_ADRESS 0x29
@@ -27,7 +26,22 @@
 #define VERTICAL_MAX 243
 #define VERTICAL_MIDDLE 127
 
+//========================================================================
+//  CHEST ANGLES
+//========================================================================
 
+//no negative values, use absolute
 
+#define CHEST_FORWARD_MIN 10
+#define CHEST_FORWARD_MAX 45
+
+#define CHEST_BACKWARD_MIN 10
+#define CHEST_BACKWARD_MAX 30
+
+#define CHEST_LEFT_MIN 5
+#define CHEST_LEFT_MAX 30
+
+#define CHEST_RIGHT_MIN 5
+#define CHEST_RIGHT_MAX 30
 
 #endif
