@@ -80,19 +80,19 @@ void loop()
     printAccelerationOffset();
     calculate();
 
-    if (coor_x >= CHEST_FORWARD_MIN)
-      joystick.setVer(coor_x);
-    else if (coor_x <= -CHEST_BACKWARD_MIN)
-      joystick.setVer(coor_x);    
-    else
-      joystick.setVer(0);
+    // if (coor_x >= CHEST_FORWARD_MIN)
+    //   joystick.setVer(coor_x);
+    // else if (coor_x <= -CHEST_BACKWARD_MIN)
+    //   joystick.setVer(coor_x);
+    // else
+    //   joystick.setVer(0);
 
-    if (abs(coor_y) > CHEST_LEFT_MIN)
-      joystick.setHor(coor_y);
-    else if (coor_y <= -CHEST_RIGHT_MIN)
-      joystick.setHor(coor_y);
-    else
-      joystick.setHor(0);
+    // if (abs(coor_y) > CHEST_LEFT_MIN)
+    //   joystick.setHor(coor_y);
+    // else if (coor_y <= -CHEST_RIGHT_MIN)
+    //   joystick.setHor(coor_y);
+    // else
+    //   joystick.setHor(0);
 
     //Serial.println("\tLoop time = " + String(int(timer - millis())));
   }
@@ -156,14 +156,40 @@ void processBody()
     coor_y = -100;
 }
 
-double processSteps()
+bool isStepDone = false;
+int curStepState = 0, prevStepState = 0, stepsCount = 0;
+
+long lastTimeCounter = 0;
+long timeCounter = 0;
+
+void processSteps()
 {
-  return 0;
+  isStepDone = false;
+  curStepState = abs((int)rightShoeAccel.getRoll());
+
+  //  calculate duration of step
+  if (curStepState >= FEET_ANGLE)
+    timeCounter += 33;
+
+  if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
+  {
+    isStepDone = true;
+    stepsCount++;
+    lastTimeCounter = timeCounter;
+    timeCounter = 0;
+  }
+
+  prevStepState = curStepState;
+  Serial.print("\t" + String(lastTimeCounter));
+  Serial.print("\t" + String(stepsCount));
+
+  //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
+  //  after that we measure the acceleration power and calculate step power
 }
 
 void calculate()
 {
-  int stepsPower = processSteps();
+  processSteps();
   processBody();
 
   Serial.print("\tx:\t" + String(coor_x));
