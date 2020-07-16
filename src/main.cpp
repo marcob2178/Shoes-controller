@@ -159,8 +159,16 @@ void processBody()
 bool isStepDone = false;
 int curStepState = 0, prevStepState = 0, stepsCount = 0;
 
-long lastTimeCounter = 0;
+double lastTimeCounter = 0;
 long timeCounter = 0;
+double lastMovementCount = 0;
+double movementCount = 0;
+double value = 0;
+
+double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 void processSteps()
 {
@@ -169,21 +177,37 @@ void processSteps()
 
   //  calculate duration of step
   if (curStepState >= FEET_ANGLE)
+  {
     timeCounter += 33;
+    movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
+  }
 
   if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
   {
     isStepDone = true;
     stepsCount++;
     lastTimeCounter = timeCounter;
+    lastMovementCount = movementCount;
+
+    movementCount = 0;
     timeCounter = 0;
   }
 
-  prevStepState = curStepState;
-  Serial.print("\t" + String(lastTimeCounter));
-  Serial.print("\t" + String(stepsCount));
+  value = (movementCount / (timeCounter / 33.0));
+  if (value > 12.0)
+    value = 12.0;
+  if (value > 0)
+    joystick.setVer(mapDouble(value, 0, 12, 0, 100));
+  if (isStepDone)
+    joystick.setVer(0);
 
-  //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
+  prevStepState = curStepState;
+  Serial.print("\t" + String());
+  Serial.print("\t" + String(stepsCount));
+  Serial.print("\t" + String(lastMovementCount));
+  Serial.print("\t" + String(value));
+
+  //  then we need process the acceleration data througth the "moving a verage algorithm" for 16 values
   //  after that we measure the acceleration power and calculate step power
 }
 
