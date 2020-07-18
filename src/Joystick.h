@@ -3,9 +3,7 @@
 
 #include "mcp4261.h"
 #include <SPI.h>
-#include "settings.h"
-
-//calibratet settings for joystick
+#include "Settings.h"
 
 class Joystick
 {

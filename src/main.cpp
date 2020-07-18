@@ -1,15 +1,15 @@
 #include <Arduino.h>
-#include <settings.h>
-#include <joystick.h>
+#include <Settings.h>
+#include <Joystick.h>
 #include <Accelerometer.h>
 #include <ChestAccel.h>
 #include <WeightSensor.h>
 
 /*  
-
-TODO:
-- add 2nd digipot for crouch and jump
-- define button using for current joystick(it doesn't implemented yet)  
+TODO: 
+1) Solve the controller problem, add different solutions for different systems (buttons, joystick up-down), could be enabled/ through the code.
+2) Add logic for bend and the direction of moving
+3) Add side moving with Weight sensors or based on accelerometer
 
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
@@ -31,7 +31,7 @@ Accelerometer rightShoeAccel(LEFT_ACCEL_TWI_ADRESS);
 Accelerometer leftShoeAccel(RIGHT_ACCEL_TWI_ADRESS);
 WeightSensor rightSideFoot(Sensor_SR);
 WeightSensor rightBackFoot(Sensor_BR);
-WeightSensor leftSideFoot(Sensor_SL);
+WeightSensor leftSideFoot(Sensor_SL); 
 WeightSensor leftBackFoot(Sensor_BL);
 
 void setup()
