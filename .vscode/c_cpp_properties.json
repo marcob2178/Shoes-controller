@@ -6,9 +6,9 @@
         {
             "name": "Win32",
             "includePath": [
-                "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/include",
-                "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/src",
-                "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/lib/mcp4261",
+                "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/include",
+                "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/src",
+                "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/lib/mcp4261",
                 "C:/Users/MARCOB/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                 "C:/Users/MARCOB/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
                 "C:/Users/MARCOB/.platformio/lib/Adafruit BNO055_ID506",
@@ -27,9 +27,9 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/include",
-                    "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/src",
-                    "c:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/lib/mcp4261",
+                    "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/include",
+                    "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/src",
+                    "C:/Users/MARCOB/Desktop/Motion tracker/Igor's code/Shoes controller/lib/mcp4261",
                     "C:/Users/MARCOB/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                     "C:/Users/MARCOB/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
                     "C:/Users/MARCOB/.platformio/lib/Adafruit BNO055_ID506",

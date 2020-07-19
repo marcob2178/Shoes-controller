@@ -5,6 +5,25 @@
 #include <SPI.h>
 #include "Settings.h"
 
+
+/*
+  if (pox == 2) {  //crawl
+    pot1.setWiper0(127);
+    pot1.setWiper1(256);
+    press1 = 0;
+  }     
+  else if (pox == 1) {  //jump
+    pot1.setWiper0(127);
+    pot1.setWiper1(0);
+    press1 = 1;
+  }
+  else {  //center
+    pot1.setWiper0(127);
+    pot1.setWiper1(127);
+    press1 = 0;
+  }
+*/
+
 class Joystick
 {
 private:
@@ -60,9 +79,9 @@ public:
         }
     }
 
-    void begin()
+    void begin(int pin)
     {
-        pot0 = new MCP4261(POT_0_CS);
+        pot0 = new MCP4261(pin);   
         // Setup SPI communications
         SPI.setDataMode(SPI_MODE0);
         SPI.setBitOrder(MSBFIRST);
@@ -73,13 +92,14 @@ public:
         pot0->initialize();
     }
 
-    void doCalibration()
+    void doCalibration()    
     {
         if (Serial.available() > 0)
         {
             char mess = Serial.read();
             if (mess == '1')
             {
+                Serial.println("1");
                 setVer(0);
                 setHor(0);
                 for (int i = 0; i <= 100; i++)
@@ -90,6 +110,7 @@ public:
             }
             if (mess == '2')
             {
+                Serial.println("2");
                 setVer(0);
                 setHor(0);
 
@@ -101,6 +122,7 @@ public:
             }
             if (mess == '3')
             {
+                Serial.println("3");
                 setVer(0);
                 setHor(0);
 
@@ -112,6 +134,7 @@ public:
             }
             if (mess == '4')
             {
+                Serial.println("4");
                 setVer(0);
                 setHor(0);
                 for (int i = 0; i >= -100; i--)

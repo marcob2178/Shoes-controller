@@ -5,10 +5,12 @@
 //  Pinout
 //========================================================================
 
-#define BUTTON_PIN 4
+#define LEFT_BUTTON_PIN 4
+#define RIGHT_BUTTON_PIN 7
 #define RIGHT_ACCEL_TWI_ADRESS 0x28
 #define LEFT_ACCEL_TWI_ADRESS 0x29
 #define POT_0_CS 6
+#define POT_1_CS 5
 #define Sensor_BR A1
 #define Sensor_SR A3
 #define Sensor_BL A0
