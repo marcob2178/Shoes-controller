@@ -3,7 +3,7 @@
 #include <Joystick.h>
 #include <Accelerometer.h>
 #include <ChestAccel.h>
-#include <WeightSensor.h>
+#include <WeightSensor.h> 
 
 /*  
 TODO: 
@@ -64,7 +64,7 @@ void setup()
 
   Serial.println("Calibrating");
   unsigned long timer = millis();
-  while (millis() - timer < 2000)
+  while (millis() - timer < 2000)   
   {
     leftShoeAccel.calibrate();
     rightShoeAccel.calibrate();
@@ -82,7 +82,7 @@ void setup()
 long long timer = 0;
 void loop()
 {
-
+    
   if (Serial.available() > 0)
   {
     char mess = Serial.read();
