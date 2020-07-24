@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-class ChestAccel
+class ChestController
 {
 private:
     SoftwareSerial *mySerial;
@@ -11,9 +11,10 @@ private:
     int roll;
     int pitch;
     double accelZ;
+    double altitude;
 
 public:
-    ChestAccel()
+    ChestController()
     {
         mySerial = new SoftwareSerial(3, 2);
         mySerial->begin(9600);
@@ -33,6 +34,10 @@ public:
     {
         return accelZ;
     }
+     double getAltitude()
+    {
+        return altitude;
+    }
 
     bool update()
     {
@@ -40,7 +45,7 @@ public:
         {
             String data = mySerial->readStringUntil('\n');
 
-            if (data.length() < 3)
+            if (data.length() < 4)
                 return false;
             //Serial.println(data);
             pitch = data.substring(0, data.indexOf(",")).toInt();
@@ -48,6 +53,8 @@ public:
             roll = data.substring(0, data.indexOf(",")).toInt();
             data.remove(0, data.indexOf(",") + 1);
             accelZ = data.substring(0, data.indexOf(",")).toDouble();
+            data.remove(0, data.indexOf(",") + 1);
+            altitude = data.substring(0, data.indexOf(",")).toDouble();
             return true;
         }
          else 

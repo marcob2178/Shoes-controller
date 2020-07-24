@@ -2,7 +2,7 @@
 #include <Settings.h>
 #include <Joystick.h>
 #include <Accelerometer.h>
-#include <ChestAccel.h>
+#include <ChestController.h>
 #include <WeightSensor.h> 
 
 /*  
@@ -28,7 +28,7 @@ int coor_x = 0, coor_y = 0;
 
 Joystick joystickForMove;
 Joystick joystickForJC; //jump and crouch
-ChestAccel chestAccel;
+ChestController chestAccel;
 Accelerometer rightShoeAccel(LEFT_ACCEL_TWI_ADRESS);
 Accelerometer leftShoeAccel(RIGHT_ACCEL_TWI_ADRESS);
 WeightSensor rightSideFoot(Sensor_SR);
