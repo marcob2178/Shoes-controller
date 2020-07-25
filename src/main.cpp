@@ -3,13 +3,15 @@
 #include <Joystick.h>
 #include <Accelerometer.h>
 #include <ChestController.h>
-#include <WeightSensor.h> 
+#include <WeightSensor.h>
 
 /*  
 TODO: 
 1) Solve the controller problem, add different solutions for different systems (buttons, joystick up-down), could be enabled/ through the code.
 2) Add logic for bend and the direction of moving
 3) Add side moving with Weight sensors or based on accelerometer
+
+FS(final speed) =( BA(bending angle in percents) * SF(scale factor) ) x WS(walking speed)
 
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
@@ -19,7 +21,14 @@ STACK:
 void printAcceleration();
 void printRawValues();
 void printAccelerationOffset();
-void calculate();
+
+void printRawChest();
+void printRawRightShoe();
+void printRawLeftShoe();
+void updateRawData();
+void calculateMovement();
+void translateTheMovement();
+void parseSerial();
 
 double valX_offcet = 0;
 double valY_offcet = 0;
@@ -43,28 +52,19 @@ void setup()
   pinMode(LEFT_BUTTON_PIN, OUTPUT);
   pinMode(RIGHT_BUTTON_PIN, OUTPUT);
 
-  joystickForMove.setCalibrationData(HORIZONT_MIN,
-                                     HORIZONT_MAX,
-                                     HORIZONT_MIDDLE,
-                                     VERTICAL_MIN,
-                                     VERTICAL_MAX,
-                                     VERTICAL_MIDDLE);
   joystickForMove.begin(POT_0_CS);
-
-  joystickForJC.setCalibrationData(HORIZONT_MIN,
-                                   HORIZONT_MAX,
-                                   HORIZONT_MIDDLE,
-                                   VERTICAL_MIN,
-                                   VERTICAL_MAX,
-                                   VERTICAL_MIDDLE);
   joystickForJC.begin(POT_1_CS);
+  joystickForMove.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
+                                     VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
+  joystickForJC.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
+                                   VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
 
   rightShoeAccel.begin();
   leftShoeAccel.begin();
 
   Serial.println("Calibrating");
   unsigned long timer = millis();
-  while (millis() - timer < 2000)   
+  while (millis() - timer < 2000)
   {
     leftShoeAccel.calibrate();
     rightShoeAccel.calibrate();
@@ -82,65 +82,95 @@ void setup()
 long long timer = 0;
 void loop()
 {
-    
+  if (millis() > timer)
+  {
+    timer = millis() + 33;
+    updateRawData();
+
+    parseSerial();
+
+    calculateMovement();
+    translateTheMovement();
+  }
+}
+
+//   printAccelerationOffset();
+//   calculate();
+
+//   // if (coor_x >= CHEST_FORWARD_MIN)
+//   //   joystick.setVer(coor_x);
+//   // else if (coor_x <= -CHEST_BACKWARD_MIN)
+//   //   joystick.setVer(coor_x);
+//   // else
+//   //   joystick.setVer(0);
+
+//   // if (abs(coor_y) > CHEST_LEFT_MIN)
+//   //   joystick.setHor(coor_y);
+//   // else if (coor_y <= -CHEST_RIGHT_MIN)
+//   //   joystick.setHor(coor_y);
+//   // else
+//   //   joystick.setHor(0);
+
+//   //Serial.println("\tLoop time = " + String(int(timer - millis())));
+// }
+
+//=====================================================================
+//  Serial Controller
+//=====================================================================
+
+#define NO_OUTPUT 0
+#define RIGHT_SHOE_OUTPUT 1
+#define LEFT_SHOE_OUTPUT 2
+#define CHEST_OUTPUT 3
+int currentOutput = 0;
+
+void parseSerial()
+{
   if (Serial.available() > 0)
   {
     char mess = Serial.read();
-    if (mess == '1')
-    {
-      Serial.println("left Button High");
-      digitalWrite(LEFT_BUTTON_PIN, HIGH);
-    }
-    if (mess == '2')
-    {
-      Serial.println("left Button Low");
-      digitalWrite(LEFT_BUTTON_PIN, LOW);
-    }
-
-    if (mess == '3')
-    {
-      Serial.println("Right Button High");
-      digitalWrite(RIGHT_BUTTON_PIN, HIGH);
-    }
-    if (mess == '4')
-    {
-      Serial.println("Right Button Low");
-      digitalWrite(RIGHT_BUTTON_PIN, LOW);
-    }
+    if (mess == 'r')
+      currentOutput = RIGHT_SHOE_OUTPUT;
+    if (mess == 'l')
+      currentOutput = LEFT_SHOE_OUTPUT;
+    if (mess == 'c')
+      currentOutput = CHEST_OUTPUT;
+    if (mess == 'n')
+      currentOutput = NO_OUTPUT;
   }
-  //joystickForMove.doCalibration();
-  //joystickForJC.doCalibration();
-  // if (millis() > timer)
-  // {
-  //   timer = millis() + 33;
-  //   chestAccel.update();
-  //   rightShoeAccel.update();
-  //   leftShoeAccel.update();
-
-  //   printAccelerationOffset();
-  //   calculate();
-
-  //   // if (coor_x >= CHEST_FORWARD_MIN)
-  //   //   joystick.setVer(coor_x);
-  //   // else if (coor_x <= -CHEST_BACKWARD_MIN)
-  //   //   joystick.setVer(coor_x);
-  //   // else
-  //   //   joystick.setVer(0);
-
-  //   // if (abs(coor_y) > CHEST_LEFT_MIN)
-  //   //   joystick.setHor(coor_y);
-  //   // else if (coor_y <= -CHEST_RIGHT_MIN)
-  //   //   joystick.setHor(coor_y);
-  //   // else
-  //   //   joystick.setHor(0);
-
-  //   //Serial.println("\tLoop time = " + String(int(timer - millis())));
-  // }
 }
 
 //=====================================================================
-//  Algorithm
+//  RAW data updating
 //=====================================================================
+
+void updateRawData()
+{
+  chestAccel.update();
+  rightShoeAccel.update();
+  leftShoeAccel.update();
+
+  switch (currentOutput)
+  {
+  case RIGHT_SHOE_OUTPUT:
+    printRawRightShoe();
+    break;
+  case LEFT_SHOE_OUTPUT:
+    printRawLeftShoe();
+    break;
+  case CHEST_OUTPUT:
+    printRawChest();
+    break;
+  }
+}
+
+//=====================================================================
+//  Movement calculations
+//=====================================================================
+
+void calculateMovement()
+{
+}
 /* 
 
 Movement recognition:
@@ -162,163 +192,225 @@ like 0-45 deg to 0-100%
 
 */
 
-void processBody()
+// void processBody()
+// {
+//   Serial.print("\tbody angle is:\t" + String(chestAccel.getPitch()));
+//   Serial.print("\t" + String(chestAccel.getRoll()));
+
+//   //calculating of forward-backward/vertical movement
+//   if (chestAccel.getRoll() < -180)
+//   {
+//     int roll = chestAccel.getRoll() + 360;
+//     coor_x = map(roll, 0, CHEST_BACKWARD_MAX, 0, -100);
+//   }
+//   else
+//     coor_x = map(chestAccel.getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
+
+//   if (coor_x > 100)
+//     coor_x = 100;
+//   if (coor_x < -100)
+//     coor_x = -100;
+
+//   //calculating of right-left/horizontal movement
+//   if (chestAccel.getPitch() < -180)
+//   {
+//     int pitch = chestAccel.getPitch() + 360;
+//     coor_y = map(pitch, 0, CHEST_RIGHT_MAX, 0, 100);
+//   }
+//   else
+//     coor_y = map(chestAccel.getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+
+//   if (coor_y > 100)
+//     coor_y = 100;
+//   if (coor_y < -100)
+//     coor_y = -100;
+// }
+
+// bool isStepDone = false;
+// int curStepState = 0, prevStepState = 0, stepsCount = 0;
+
+// double lastTimeCounter = 0;
+// long timeCounter = 0;
+// double lastMovementCount = 0;
+// double movementCount = 0;
+// double value = 0;
+
+// double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
+// {
+//   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+// }
+
+// void processSteps()
+// {
+//   isStepDone = false;
+//   curStepState = abs((int)rightShoeAccel.getRoll());
+
+//   //  calculate duration of step
+//   if (curStepState >= FEET_ANGLE)
+//   {
+//     timeCounter += 33;
+//     movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
+//   }
+
+//   if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
+//   {
+//     isStepDone = true;
+//     stepsCount++;
+//     lastTimeCounter = timeCounter;
+//     lastMovementCount = movementCount;
+
+//     movementCount = 0;
+//     timeCounter = 0;
+//   }
+
+//   value = (movementCount / (timeCounter / 33.0));
+//   if (value > 12.0)
+//     value = 12.0;
+//   if (value > 0)
+//     joystickForMove.setVer(mapDouble(value, 0, 12, 0, 100));
+//   if (isStepDone)
+//     joystickForMove.setVer(0);
+
+//   prevStepState = curStepState;
+//   Serial.print("\t" + String());
+//   Serial.print("\t" + String(stepsCount));
+//   Serial.print("\t" + String(lastMovementCount));
+//   Serial.print("\t" + String(value));
+
+//   //  then we need process the acceleration data througth the "moving a verage algorithm" for 16 values
+//   //  after that we measure the acceleration power and calculate step power
+// }
+
+// void calculate()
+// {
+//   processSteps();
+//   processBody();
+
+//   Serial.print("\tx:\t" + String(coor_x));
+//   Serial.println("\ty:\t" + String(coor_y));
+//   //Serial.print("\tlegs: \t" + String(stepsPower));
+// }
+
+//=====================================================================
+//  Prints
+//=====================================================================
+
+void translateTheMovement()
 {
-  Serial.print("\tbody angle is:\t" + String(chestAccel.getPitch()));
-  Serial.print("\t" + String(chestAccel.getRoll()));
-
-  //calculating of forward-backward/vertical movement
-  if (chestAccel.getRoll() < -180)
-  {
-    int roll = chestAccel.getRoll() + 360;
-    coor_x = map(roll, 0, CHEST_BACKWARD_MAX, 0, -100);
-  }
-  else
-    coor_x = map(chestAccel.getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
-
-  if (coor_x > 100)
-    coor_x = 100;
-  if (coor_x < -100)
-    coor_x = -100;
-
-  //calculating of right-left/horizontal movement
-  if (chestAccel.getPitch() < -180)
-  {
-    int pitch = chestAccel.getPitch() + 360;
-    coor_y = map(pitch, 0, CHEST_RIGHT_MAX, 0, 100);
-  }
-  else
-    coor_y = map(chestAccel.getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
-
-  if (coor_y > 100)
-    coor_y = 100;
-  if (coor_y < -100)
-    coor_y = -100;
-}
-
-bool isStepDone = false;
-int curStepState = 0, prevStepState = 0, stepsCount = 0;
-
-double lastTimeCounter = 0;
-long timeCounter = 0;
-double lastMovementCount = 0;
-double movementCount = 0;
-double value = 0;
-
-double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
-{
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-void processSteps()
-{
-  isStepDone = false;
-  curStepState = abs((int)rightShoeAccel.getRoll());
-
-  //  calculate duration of step
-  if (curStepState >= FEET_ANGLE)
-  {
-    timeCounter += 33;
-    movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
-  }
-
-  if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
-  {
-    isStepDone = true;
-    stepsCount++;
-    lastTimeCounter = timeCounter;
-    lastMovementCount = movementCount;
-
-    movementCount = 0;
-    timeCounter = 0;
-  }
-
-  value = (movementCount / (timeCounter / 33.0));
-  if (value > 12.0)
-    value = 12.0;
-  if (value > 0)
-    joystickForMove.setVer(mapDouble(value, 0, 12, 0, 100));
-  if (isStepDone)
-    joystickForMove.setVer(0);
-
-  prevStepState = curStepState;
-  Serial.print("\t" + String());
-  Serial.print("\t" + String(stepsCount));
-  Serial.print("\t" + String(lastMovementCount));
-  Serial.print("\t" + String(value));
-
-  //  then we need process the acceleration data througth the "moving a verage algorithm" for 16 values
-  //  after that we measure the acceleration power and calculate step power
-}
-
-void calculate()
-{
-  processSteps();
-  processBody();
-
-  Serial.print("\tx:\t" + String(coor_x));
-  Serial.println("\ty:\t" + String(coor_y));
-  //Serial.print("\tlegs: \t" + String(stepsPower));
 }
 
 //=====================================================================
 //  Prints
 //=====================================================================
 
-void printAngles()
+// if (millis() > timer)
+// {
+//   timer = millis() + 33;
+//   chestAccel.update();
+//   rightShoeAccel.update();
+//   leftShoeAccel.update();
+
+//   printAccelerationOffset();
+//   calculate();
+
+//   // if (coor_x >= CHEST_FORWARD_MIN)
+//   //   joystick.setVer(coor_x);
+//   // else if (coor_x <= -CHEST_BACKWARD_MIN)
+//   //   joystick.setVer(coor_x);
+//   // else
+//   //   joystick.setVer(0);
+
+//   // if (abs(coor_y) > CHEST_LEFT_MIN)
+//   //   joystick.setHor(coor_y);
+//   // else if (coor_y <= -CHEST_RIGHT_MIN)
+//   //   joystick.setHor(coor_y);
+//   // else
+//   //   joystick.setHor(0);
+
+//   //Serial.println("\tLoop time = " + String(int(timer - millis())));
+// }
+
+// void printAngles()
+// {
+//   Serial.print("\tright shoe:");
+
+//   Serial.print("\tyaw: \t" + String(rightShoeAccel.getYaw()));
+//   Serial.print("\tpitch: \t" + String(rightShoeAccel.getPitch()));
+//   Serial.print("\troll: \t" + String(rightShoeAccel.getRoll()));
+
+//   Serial.print("\tleft shoe:");
+
+//   Serial.print("\tyaw: \t" + String(leftShoeAccel.getYaw()));
+//   Serial.print("\tpitch: \t" + String(leftShoeAccel.getPitch()));
+//   Serial.println("\troll: \t" + String(leftShoeAccel.getRoll()));
+// }
+
+// void printAccelerationOffset()
+// {
+//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().x() - valX_offcet));
+//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().y() - valY_offcet));
+//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().z() - valZ_offcet));
+// }
+
+// void printAcceleration()
+// {
+//   Serial.print("\tright shoe:");
+//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().x())));
+//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().y())));
+//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().z())));
+
+//   Serial.print("\tleft shoe:");
+//   Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().x())));
+//   Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().y())));
+//   Serial.println("\t" + String((double)(leftShoeAccel.getLinAccel().z())));
+// }
+
+void printRawChest()
 {
-  Serial.print("\tright shoe:");
 
-  Serial.print("\tyaw: \t" + String(rightShoeAccel.getYaw()));
-  Serial.print("\tpitch: \t" + String(rightShoeAccel.getPitch()));
-  Serial.print("\troll: \t" + String(rightShoeAccel.getRoll()));
-
-  Serial.print("\tleft shoe:");
-
-  Serial.print("\tyaw: \t" + String(leftShoeAccel.getYaw()));
-  Serial.print("\tpitch: \t" + String(leftShoeAccel.getPitch()));
-  Serial.println("\troll: \t" + String(leftShoeAccel.getRoll()));
+  Serial.print("chest:");
+  Serial.print("\tp\t" + String(chestAccel.getPitch()));
+  Serial.print("\tr\t" + String(chestAccel.getRoll()));
+  Serial.print("\taZ\t" + String(chestAccel.getAccelZ()));
+  Serial.println("\talt\t" + String(chestAccel.getAltitude()));
 }
 
-void printAccelerationOffset()
+void printRawRightShoe()
 {
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().x() - valX_offcet));
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().y() - valY_offcet));
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().z() - valZ_offcet));
+  Serial.print("rshoe:");
+  Serial.print("\tax\t" + String(rightShoeAccel.getLinAccel().x()));
+  Serial.print("\tay\t" + String(rightShoeAccel.getLinAccel().y()));
+  Serial.print("\taz\t" + String(rightShoeAccel.getLinAccel().z()));
+
+  Serial.print("\ty\t" + String(rightShoeAccel.getYaw()));
+  Serial.print("\tr\t" + String(rightShoeAccel.getRoll()));
+  Serial.print("\tp\t" + String(rightShoeAccel.getPitch()));
+
+  Serial.print("\tweight:");
+  Serial.print("\ts\t" + String(rightSideFoot.readRaw()));
+  Serial.println("\tb\t" + String(rightBackFoot.readRaw()));
 }
 
-void printAcceleration()
+void printRawLeftShoe()
 {
-  Serial.print("\tright shoe:");
-  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().x())));
-  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().y())));
-  Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().z())));
+  Serial.print("lshoe:");
+  Serial.print("\tax\t" + String(leftShoeAccel.getLinAccel().x()));
+  Serial.print("\tay\t" + String(leftShoeAccel.getLinAccel().y()));
+  Serial.print("\taz\t" + String(leftShoeAccel.getLinAccel().z()));
 
-  Serial.print("\tleft shoe:");
-  Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().x())));
-  Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().y())));
-  Serial.println("\t" + String((double)(leftShoeAccel.getLinAccel().z())));
+  Serial.print("\ty\t" + String(leftShoeAccel.getYaw()));
+  Serial.print("\tr\t" + String(leftShoeAccel.getRoll()));
+  Serial.print("\tp\t" + String(leftShoeAccel.getPitch()));
+
+  Serial.print("\tweight:");
+  Serial.print("\ts\t" + String(leftSideFoot.readRaw()));
+  Serial.println("\tb\t" + String(leftBackFoot.readRaw()));
 }
 
 void printRawValues()
 {
-  Serial.print("\tchest:");
-  Serial.print("\t" + String(chestAccel.getPitch()));
-  Serial.print("\t" + String(chestAccel.getRoll()));
-
-  Serial.print("\tright shoe:");
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().x()));
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().y()));
-  Serial.print("\t" + String(rightShoeAccel.getLinAccel().z()));
-  Serial.print("\tweight:");
-  Serial.print("\t" + String(rightSideFoot.readRaw()));
-  Serial.print("\t" + String(rightBackFoot.readRaw()));
-
-  Serial.print("\tleft shoe:");
-  Serial.print("\t" + String(leftShoeAccel.getLinAccel().x()));
-  Serial.print("\t" + String(leftShoeAccel.getLinAccel().y()));
-  Serial.print("\t" + String(leftShoeAccel.getLinAccel().z()));
-  Serial.print("\tweight:");
-  Serial.print("\t" + String(leftSideFoot.readRaw()));
-  Serial.println("\t" + String(leftBackFoot.readRaw()));
+  Serial.println("(\\/)*===*(\\/)");
+  printRawChest();
+  printRawRightShoe();
+  printRawLeftShoe();
 }

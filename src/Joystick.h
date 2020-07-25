@@ -79,6 +79,14 @@ public:
         }
     }
 
+    void pressButton(){
+
+    }
+
+    void releaseButton(){
+
+    }
+
     void begin(int pin)
     {
         pot0 = new MCP4261(pin);   
