@@ -245,43 +245,7 @@ like 0-45 deg to 0-100%
 
 // void processSteps()
 // {
-//   isStepDone = false;
-//   curStepState = abs((int)rightShoeAccel.getRoll());
-
-//   //  calculate duration of step
-//   if (curStepState >= FEET_ANGLE)
-//   {
-//     timeCounter += 33;
-//     movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
-//   }
-
-//   if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
-//   {
-//     isStepDone = true;
-//     stepsCount++;
-//     lastTimeCounter = timeCounter;
-//     lastMovementCount = movementCount;
-
-//     movementCount = 0;
-//     timeCounter = 0;
-//   }
-
-//   value = (movementCount / (timeCounter / 33.0));
-//   if (value > 12.0)
-//     value = 12.0;
-//   if (value > 0)
-//     joystickForMove.setVer(mapDouble(value, 0, 12, 0, 100));
-//   if (isStepDone)
-//     joystickForMove.setVer(0);
-
-//   prevStepState = curStepState;
-//   Serial.print("\t" + String());
-//   Serial.print("\t" + String(stepsCount));
-//   Serial.print("\t" + String(lastMovementCount));
-//   Serial.print("\t" + String(value));
-
-//   //  then we need process the acceleration data througth the "moving a verage algorithm" for 16 values
-//   //  after that we measure the acceleration power and calculate step power
+//
 // }
 
 // void calculate()
@@ -294,27 +258,31 @@ like 0-45 deg to 0-100%
 //   //Serial.print("\tlegs: \t" + String(stepsPower));
 // }
 
-double getWalkingSpeed()
+//===========================================================
+//  crouch logic
+
+bool isCrouch()
 {
-  return 0;
+  return chestAccel.getAltitude() < -0.6;
 }
 
-int getWalkingDirection()
+double getCrouchPower()
 {
-  return 0;
+  double val = chestAccel.getAltitude() + 0.6;
+  return val > 0 ? val : -val;
 }
+
 //===========================================================
 //  jump logic
 
-double isJumping(){
-  return true;
-}
-
 double getJumpingPower()
 {
-  return 12;
+  return chestAccel.getAccelZ() > 0 ? chestAccel.getAccelZ() : 0;
 }
-
+double isJumping()
+{
+  return getJumpingPower() > 5;
+}
 //===========================================================
 //  bend logic
 
@@ -371,29 +339,68 @@ bool isBending()
   return getBendingPower() > 5;
 }
 
+//===========================================================
+//  running logic
+
+bool isStepDone = false;
+int curStepState = 0, prevStepState = 0, stepsCount = 0;
+
+long timeCounter = 0;
+double movementCount = 0;     
+
+double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+double getWalkingPower()
+{
+  return (movementCount / (timeCounter / 33.0));
+}
+
+bool isWalking()
+{
+  isStepDone = false;
+  curStepState = abs((int)rightShoeAccel.getRoll());
+  //  calculate duration of step
+
+  if (curStepState >= FEET_ANGLE)
+  {
+    timeCounter += 33;
+    movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
+  }
+
+  if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
+  {
+    isStepDone = true;
+
+    movementCount = 0;
+    timeCounter = 0;
+  }
+  prevStepState = curStepState;
+
+  return timeCounter > 0;
+
+  //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
+  //  after that we measure the acceleration power and calculate step power
+}
+
 //=====================================================================
 //  Movement Translating
 //=====================================================================
 
-#define DIRECTION_FORWARD 1
-#define DIRECTION_BACKWARD 2
-#define DIRECTION_LEFT 3
-#define DIRECTION_RIGHT 4
-
-bool isCrouch = false;
-bool isWalking = false;
-
 void translateTheMovement()
-{ 
+{
   if (currentOutput == MOVEMENT_OUTPUT)
+  {
     //jump output
     Serial.print("\tJump:" + String(isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(isJumping() ? String(getJumpingPower()) : "\t"));
-    
+
     //bend output
     Serial.print("\tBend:");
 
     if (!isBending())
-      Serial.print("\tStraight\t\t");
+      Serial.print("\tStraight\t");
     else
     {
       if ((getBendingDirection() > 315) || (getBendingDirection() <= 45))
@@ -411,6 +418,27 @@ void translateTheMovement()
       Serial.print(String("\t") + getBendingDirection());
       Serial.print(String("\t") + getBendingPower());
     }
+
+    //crouch output
+
+    // Serial.print("\tCrouch:");
+    // if (isCrouch())
+    // {
+    //   Serial.print("\tDetected" + String("\t") + String(getCrouchPower()));
+    // }
+    // else
+    //   Serial.print("\tNothing");
+
+    //running output
+
+    Serial.print("\tWalk:");
+    if (isWalking())
+    {
+      Serial.print("\tDetected" + String("\t") + String(getWalkingPower()));
+    }
+    else
+      Serial.print("\tNothing");
+
     Serial.println();
   }
 }
