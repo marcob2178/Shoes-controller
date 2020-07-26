@@ -22,19 +22,25 @@ public:
 
     int getRoll()
     {
-        return roll;
+        if (roll < -180)
+            return roll + 360;
+        else
+            return roll;
     }
 
     int getPitch()
     {
-        return pitch;
+        if (pitch < -180)
+            return pitch + 360;
+        else
+            return pitch;
     }
 
     double getAccelZ()
     {
         return accelZ;
     }
-     double getAltitude()
+    double getAltitude()
     {
         return altitude;
     }
@@ -47,7 +53,7 @@ public:
 
             if (data.length() < 4)
                 return false;
-            //Serial.println(data);
+
             pitch = data.substring(0, data.indexOf(",")).toInt();
             data.remove(0, data.indexOf(",") + 1);
             roll = data.substring(0, data.indexOf(",")).toInt();
@@ -57,8 +63,8 @@ public:
             altitude = data.substring(0, data.indexOf(",")).toDouble();
             return true;
         }
-         else 
-         return true;
+        else
+            return true;
     }
 };
 

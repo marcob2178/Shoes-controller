@@ -11,7 +11,6 @@ TODO:
 2) Add logic for bend and the direction of moving
 3) Add side moving with Weight sensors or based on accelerometer
 
-FS(final speed) =( BA(bending angle in percents) * SF(scale factor) ) x WS(walking speed)
 
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
@@ -99,7 +98,7 @@ void loop()
 
 //   // if (coor_x >= CHEST_FORWARD_MIN)
 //   //   joystick.setVer(coor_x);
-//   // else if (coor_x <= -CHEST_BACKWARD_MIN)
+//   // else if (coor_x <= -CHES  T_BACKWARD_MIN)
 //   //   joystick.setVer(coor_x);
 //   // else
 //   //   joystick.setVer(0);
@@ -122,6 +121,8 @@ void loop()
 #define RIGHT_SHOE_OUTPUT 1
 #define LEFT_SHOE_OUTPUT 2
 #define CHEST_OUTPUT 3
+#define MOVEMENT_OUTPUT 4
+
 int currentOutput = 0;
 
 void parseSerial()
@@ -133,8 +134,10 @@ void parseSerial()
       currentOutput = RIGHT_SHOE_OUTPUT;
     if (mess == 'l')
       currentOutput = LEFT_SHOE_OUTPUT;
-    if (mess == 'c')
+    if (mess == 'c') //beautiful
       currentOutput = CHEST_OUTPUT;
+    if (mess == 'm')
+      currentOutput = MOVEMENT_OUTPUT;
     if (mess == 'n')
       currentOutput = NO_OUTPUT;
   }
@@ -171,8 +174,8 @@ void updateRawData()
 void calculateMovement()
 {
 }
-/* 
 
+/* 
 Movement recognition:
 - Jump (weight sensord + accelerations)
 - Crouch  (acceleration?)
@@ -291,13 +294,143 @@ like 0-45 deg to 0-100%
 //   //Serial.print("\tlegs: \t" + String(stepsPower));
 // }
 
+double getWalkingSpeed()
+{
+  return 0;
+}
+
+int getWalkingDirection()
+{
+  return 0;
+}
+//===========================================================
+//  jump logic
+
+double isJumping(){
+  return true;
+}
+
+double getJumpingPower()
+{
+  return 12;
+}
+
+//===========================================================
+//  bend logic
+
+int getBendingDirection()
+{
+  double y = chestAccel.getPitch();
+  double x = chestAccel.getRoll();
+
+  double val = 0;
+  if ((x > 0) && (y >= 0))
+  {
+    val = atan(y / x);
+  }
+
+  else if ((x > 0) && (y < 0))
+  {
+    val = atan(y / x) + 2 * PI;
+  }
+
+  else if (x < 0)
+  {
+    val = atan(y / x) + PI;
+  }
+
+  else if ((x == 0) && (y > 0))
+  {
+    val = PI / 2;
+  }
+
+  else if ((x == 0) && (y < 0))
+  {
+    val = (3 * PI) / 2;
+  }
+
+  else if ((x == 0) && (y == 0))
+  {
+    val = 0;
+  }
+
+  return (val * 180.0) / PI;
+}
+
+double getBendingPower()
+{
+
+  int x = chestAccel.getPitch();
+  int y = chestAccel.getRoll();
+
+  return sqrt((x * x) + (y * y));
+}
+
+bool isBending()
+{
+  return getBendingPower() > 5;
+}
+
 //=====================================================================
-//  Prints
+//  Movement Translating
 //=====================================================================
 
+#define DIRECTION_FORWARD 1
+#define DIRECTION_BACKWARD 2
+#define DIRECTION_LEFT 3
+#define DIRECTION_RIGHT 4
+
+bool isCrouch = false;
+bool isWalking = false;
+
 void translateTheMovement()
-{
+{ 
+  if (currentOutput == MOVEMENT_OUTPUT)
+    //jump output
+    Serial.print("\tJump:" + String(isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(isJumping() ? String(getJumpingPower()) : "\t"));
+    
+    //bend output
+    Serial.print("\tBend:");
+
+    if (!isBending())
+      Serial.print("\tStraight\t\t");
+    else
+    {
+      if ((getBendingDirection() > 315) || (getBendingDirection() <= 45))
+        Serial.print("\tbackward");
+
+      else if ((getBendingDirection() > 225) && (getBendingDirection() <= 315))
+        Serial.print("\tleft");
+
+      else if ((getBendingDirection() > 135) && (getBendingDirection() <= 225))
+        Serial.print("\tforward");
+
+      else if ((getBendingDirection() > 45) && (getBendingDirection() <= 135))
+        Serial.print("\tright");
+
+      Serial.print(String("\t") + getBendingDirection());
+      Serial.print(String("\t") + getBendingPower());
+    }
+    Serial.println();
+  }
 }
+
+// void sendCommandMoving(int direction, int power)
+// {
+//   switch (direction)
+//   {
+//   case DIRECTION_RIGHT:
+//     //joystickForMove.setHor();
+//     break;
+//   }
+// }
+
+// //FS(final speed) =( BA(bending angle in percents) * SF(scale factor) ) x WS(walking speed)
+// int convertSpeedForJoystick()
+// {
+//   //need to implement some calculations
+//   getWalkingSpeed();
+// }
 
 //=====================================================================
 //  Prints
@@ -328,41 +461,6 @@ void translateTheMovement()
 //   //   joystick.setHor(0);
 
 //   //Serial.println("\tLoop time = " + String(int(timer - millis())));
-// }
-
-// void printAngles()
-// {
-//   Serial.print("\tright shoe:");
-
-//   Serial.print("\tyaw: \t" + String(rightShoeAccel.getYaw()));
-//   Serial.print("\tpitch: \t" + String(rightShoeAccel.getPitch()));
-//   Serial.print("\troll: \t" + String(rightShoeAccel.getRoll()));
-
-//   Serial.print("\tleft shoe:");
-
-//   Serial.print("\tyaw: \t" + String(leftShoeAccel.getYaw()));
-//   Serial.print("\tpitch: \t" + String(leftShoeAccel.getPitch()));
-//   Serial.println("\troll: \t" + String(leftShoeAccel.getRoll()));
-// }
-
-// void printAccelerationOffset()
-// {
-//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().x() - valX_offcet));
-//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().y() - valY_offcet));
-//   Serial.print("\t" + String(rightShoeAccel.getLinAccel().z() - valZ_offcet));
-// }
-
-// void printAcceleration()
-// {
-//   Serial.print("\tright shoe:");
-//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().x())));
-//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().y())));
-//   Serial.print("\t" + String((double)(rightShoeAccel.getLinAccel().z())));
-
-//   Serial.print("\tleft shoe:");
-//   Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().x())));
-//   Serial.print("\t" + String((double)(leftShoeAccel.getLinAccel().y())));
-//   Serial.println("\t" + String((double)(leftShoeAccel.getLinAccel().z())));
 // }
 
 void printRawChest()

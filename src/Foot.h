@@ -3,7 +3,7 @@
 
 #include <Accelerometer.h>
 
-class Feet
+class Foot
 {
 private:
     Accelerometer *accel;
@@ -13,6 +13,7 @@ public:
     {
         accel = _accel;
     }
+    
     void update()
     {
     }
@@ -22,14 +23,10 @@ public:
     }
 
     bool isStepDetected()
-    {   
-    }
-
-    double getStepPower()
     {
     }
 
-    bool getStepDirection() //are we need this?
+    double getStepPower()
     {
     }
 };

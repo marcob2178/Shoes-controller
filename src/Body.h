@@ -8,7 +8,6 @@ class Body
 {
 
 private:
-    int val;
 
 public:
     Body()
