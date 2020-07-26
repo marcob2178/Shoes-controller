@@ -15,8 +15,6 @@ private:
     //  x       y       z
     //  yaw     pitch   roll
 
-    
-
     void setOffsets(double _offset_y, double _offset_z)
     {
         offset_y = _offset_y;
@@ -24,9 +22,9 @@ private:
     }
 
 public:
-    Accelerometer(int address)
+    Accelerometer(int id, int address)
     {
-        bno = new Adafruit_BNO055(-1, address);
+        bno = new Adafruit_BNO055(id, address);
     };
 
     void calibrate()
@@ -43,9 +41,12 @@ public:
             while (1)
                 ;
         }
-        delay(1000);
+        delay(500);
 
-        bno->setExtCrystalUse(true);
+        //bno->setExtCrystalUse(true);
+        delay(500);
+        
+        bno->printSensorDetails();
         calibrate();
     }
 

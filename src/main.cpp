@@ -37,8 +37,8 @@ int coor_x = 0, coor_y = 0;
 Joystick joystickForMove;
 Joystick joystickForJC; //jump and crouch
 ChestController chestAccel;
-Accelerometer rightShoeAccel(LEFT_ACCEL_TWI_ADRESS);
-Accelerometer leftShoeAccel(RIGHT_ACCEL_TWI_ADRESS);
+Accelerometer rightShoeAccel(1, LEFT_ACCEL_TWI_ADRESS);
+Accelerometer leftShoeAccel(2, RIGHT_ACCEL_TWI_ADRESS);
 WeightSensor rightSideFoot(Sensor_SR);
 WeightSensor rightBackFoot(Sensor_BR);
 WeightSensor leftSideFoot(Sensor_SL);
@@ -47,7 +47,7 @@ WeightSensor leftBackFoot(Sensor_BL);
 void setup()
 {
   Serial.begin(2000000);
-  delay(500);
+  delay(1000);
   pinMode(LEFT_BUTTON_PIN, OUTPUT);
   pinMode(RIGHT_BUTTON_PIN, OUTPUT);
 
@@ -63,13 +63,13 @@ void setup()
 
   Serial.println("Calibrating");
   unsigned long timer = millis();
-  while (millis() - timer < 2000)
+  while (millis() - timer < 3000)
   {
     leftShoeAccel.calibrate();
     rightShoeAccel.calibrate();
     Serial.print(".");
-    delay(100);
-  }
+    delay(50);
+  } 
   Serial.println("\nDone!");
   Serial.println("Program started!");
 
@@ -152,6 +152,11 @@ void updateRawData()
   chestAccel.update();
   rightShoeAccel.update();
   leftShoeAccel.update();
+
+  rightSideFoot.update();
+  rightBackFoot.update();
+  leftSideFoot.update();
+  leftBackFoot.update();
 
   switch (currentOutput)
   {
@@ -342,47 +347,86 @@ bool isBending()
 //===========================================================
 //  running logic
 
-bool isStepDone = false;
-int curStepState = 0, prevStepState = 0, stepsCount = 0;
-
-long timeCounter = 0;
-double movementCount = 0;     
-
 double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-double getWalkingPower()
+// right
+
+bool isRStepDone = false;
+int rCurStepState = 0, rPrevStepState = 0, rStepsCount = 0;
+
+long rTimeCounter = 0;
+double rMovementCount = 0;
+
+double getRWalkingPower()
 {
-  return (movementCount / (timeCounter / 33.0));
+  return (rMovementCount / (rTimeCounter / 33.0));
 }
 
-bool isWalking()
+bool isRWalking()
 {
-  isStepDone = false;
-  curStepState = abs((int)rightShoeAccel.getRoll());
+  isRStepDone = false;
+  rCurStepState = abs((int)rightShoeAccel.getRoll());
   //  calculate duration of step
 
-  if (curStepState >= FEET_ANGLE)
+  if (rCurStepState >= FEET_ANGLE)
   {
-    timeCounter += 33;
-    movementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
+    rTimeCounter += 33;
+    rMovementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
   }
 
-  if ((curStepState < FEET_ANGLE) && (prevStepState >= FEET_ANGLE))
+  if ((rCurStepState < FEET_ANGLE) && (rPrevStepState >= FEET_ANGLE))
   {
-    isStepDone = true;
+    isRStepDone = true;
 
-    movementCount = 0;
-    timeCounter = 0;
+    rMovementCount = 0;
+    rTimeCounter = 0;
   }
-  prevStepState = curStepState;
+  rPrevStepState = rCurStepState;
 
-  return timeCounter > 0;
+  return rTimeCounter > 0;
 
   //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
   //  after that we measure the acceleration power and calculate step power
+}
+
+//left
+
+bool isLStepDone = false;
+int lCurStepState = 0, lPrevStepState = 0, lStepsCount = 0;
+
+long lTimeCounter = 0;
+double lMovementCount = 0;
+
+double getLWalkingPower()
+{
+  return (lMovementCount / (lTimeCounter / 33.0));
+}
+
+bool isLWalking()
+{
+  isLStepDone = false;
+  lCurStepState = abs((int)leftShoeAccel.getRoll());
+  //  calculate duration of step
+
+  if (lCurStepState >= FEET_ANGLE)
+  {
+    lTimeCounter += 33;
+    lMovementCount += leftShoeAccel.getLinAccel().z() > 0 ? leftShoeAccel.getLinAccel().z() : -leftShoeAccel.getLinAccel().z();
+  }
+
+  if ((lCurStepState < FEET_ANGLE) && (lPrevStepState >= FEET_ANGLE))
+  {
+    isLStepDone = true;
+
+    lMovementCount = 0;
+    lTimeCounter = 0;
+  }
+  lPrevStepState = lCurStepState;
+
+  return lTimeCounter > 0;
 }
 
 //=====================================================================
@@ -429,15 +473,29 @@ void translateTheMovement()
     // else
     //   Serial.print("\tNothing");
 
-    //running output
+    //running output right
 
-    Serial.print("\tWalk:");
-    if (isWalking())
-    {
-      Serial.print("\tDetected" + String("\t") + String(getWalkingPower()));
-    }
+    Serial.print("\tRight:");
+    if (isRWalking())
+      Serial.print(String("\t") + String(getRWalkingPower()));
+    
     else
       Serial.print("\tNothing");
+
+    //running output left
+
+    Serial.print("\tLeft:");
+    if (isLWalking())
+      Serial.print(String("\t") + String(getLWalkingPower()));
+    
+    else
+      Serial.print("\tNothing");
+
+    //special things
+    
+    //stepback
+    //sidestep
+    //cruise control
 
     Serial.println();
   }

@@ -9,7 +9,7 @@ private:
     Accelerometer *accel;
 
 public:
-    Feet(Accelerometer *_accel)
+    Foot(Accelerometer *_accel)
     {
         accel = _accel;
     }
