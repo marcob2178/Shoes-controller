@@ -2,8 +2,11 @@
 #include <Settings.h>
 #include <Joystick.h>
 #include <Accelerometer.h>
-#include <ChestController.h>
+#include <ChestSensors.h>
 #include <WeightSensor.h>
+
+#include <Chest.h>
+#include <Foot.h>
 
 /*  
 TODO: 
@@ -25,7 +28,6 @@ void printRawChest();
 void printRawRightShoe();
 void printRawLeftShoe();
 void updateRawData();
-void calculateMovement();
 void translateTheMovement();
 void parseSerial();
 
@@ -36,17 +38,35 @@ int coor_x = 0, coor_y = 0;
 
 Joystick joystickForMove;
 Joystick joystickForJC; //jump and crouch
-ChestController chestAccel;
-Accelerometer rightShoeAccel(1, LEFT_ACCEL_TWI_ADRESS);
-Accelerometer leftShoeAccel(2, RIGHT_ACCEL_TWI_ADRESS);
-WeightSensor rightSideFoot(Sensor_SR);
-WeightSensor rightBackFoot(Sensor_BR);
-WeightSensor leftSideFoot(Sensor_SL);
-WeightSensor leftBackFoot(Sensor_BL);
+ChestSensors *chestAccel;
+Accelerometer *rightShoeAccel;
+Accelerometer *leftShoeAccel;
+WeightSensor *rightSideFoot;
+WeightSensor *rightBackFoot;
+WeightSensor *leftSideFoot;
+WeightSensor *leftBackFoot;
+
+//logic
+Chest *chest;
+Foot *rightFoot;
+Foot *leftFoot;
 
 void setup()
 {
   Serial.begin(2000000);
+
+  chestAccel = new ChestSensors();
+  rightShoeAccel = new Accelerometer(1, LEFT_ACCEL_TWI_ADRESS);
+  leftShoeAccel = new Accelerometer(2, RIGHT_ACCEL_TWI_ADRESS);
+  rightSideFoot = new WeightSensor(Sensor_SR);
+  rightBackFoot = new WeightSensor(Sensor_BR);
+  leftSideFoot = new WeightSensor(Sensor_SL);
+  leftBackFoot = new WeightSensor(Sensor_BL);
+
+  chest = new Chest(chestAccel);
+  rightFoot = new Foot(rightShoeAccel, rightSideFoot, rightBackFoot);
+  leftFoot = new Foot(leftShoeAccel, leftSideFoot, leftBackFoot);
+
   delay(1000);
   pinMode(LEFT_BUTTON_PIN, OUTPUT);
   pinMode(RIGHT_BUTTON_PIN, OUTPUT);
@@ -58,24 +78,24 @@ void setup()
   joystickForJC.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
                                    VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
 
-  rightShoeAccel.begin();
-  leftShoeAccel.begin();
+  rightShoeAccel->begin();
+  leftShoeAccel->begin();
 
   Serial.println("Calibrating");
   unsigned long timer = millis();
   while (millis() - timer < 3000)
   {
-    leftShoeAccel.calibrate();
-    rightShoeAccel.calibrate();
+    leftShoeAccel->calibrate();
+    rightShoeAccel->calibrate();
     Serial.print(".");
     delay(50);
   }
   Serial.println("\nDone!");
   Serial.println("Program started!");
 
-  valX_offcet = rightShoeAccel.getLinAccel().x();
-  valY_offcet = rightShoeAccel.getLinAccel().y();
-  valZ_offcet = rightShoeAccel.getLinAccel().z();
+  valX_offcet = rightShoeAccel->getLinAccel().x();
+  valY_offcet = rightShoeAccel->getLinAccel().y();
+  valZ_offcet = rightShoeAccel->getLinAccel().z();
 }
 
 long long timer = 0;
@@ -88,7 +108,6 @@ void loop()
 
     parseSerial();
 
-    calculateMovement();
     translateTheMovement();
   }
 }
@@ -121,7 +140,9 @@ void loop()
 #define RIGHT_SHOE_OUTPUT 1
 #define LEFT_SHOE_OUTPUT 2
 #define CHEST_OUTPUT 3
-#define MOVEMENT_OUTPUT 4
+#define MOVEMENT_CHEST_OUTPUT 4
+#define MOVEMENT_RIGHT_OUTPUT 5
+#define MOVEMENT_LEFT_OUTPUT 6
 
 int currentOutput = 0;
 
@@ -137,7 +158,11 @@ void parseSerial()
     if (mess == 'c') //beautiful
       currentOutput = CHEST_OUTPUT;
     if (mess == 'm')
-      currentOutput = MOVEMENT_OUTPUT;
+      currentOutput = MOVEMENT_CHEST_OUTPUT;
+    if (mess == '.')
+      currentOutput = MOVEMENT_RIGHT_OUTPUT;
+    if (mess == ',')
+      currentOutput = MOVEMENT_LEFT_OUTPUT;
     if (mess == 'n')
       currentOutput = NO_OUTPUT;
   }
@@ -149,14 +174,14 @@ void parseSerial()
 
 void updateRawData()
 {
-  chestAccel.update();
-  rightShoeAccel.update();
-  leftShoeAccel.update();
+  chestAccel->update();
+  rightShoeAccel->update();
+  leftShoeAccel->update();
 
-  rightSideFoot.update();
-  rightBackFoot.update();
-  leftSideFoot.update();
-  leftBackFoot.update();
+  rightSideFoot->update();
+  rightBackFoot->update();
+  leftSideFoot->update();
+  leftBackFoot->update();
 
   switch (currentOutput)
   {
@@ -175,10 +200,6 @@ void updateRawData()
 //=====================================================================
 //  Movement calculations
 //=====================================================================
-
-void calculateMovement()
-{
-}
 
 /* 
 Movement recognition:
@@ -234,320 +255,137 @@ like 0-45 deg to 0-100%
 //     coor_y = -100;
 // }
 
-// bool isStepDone = false;
-// int curStepState = 0, prevStepState = 0, stepsCount = 0;
-
-// double lastTimeCounter = 0;
-// long timeCounter = 0;
-// double lastMovementCount = 0;
-// double movementCount = 0;
-// double value = 0;
-
-// double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
-// {
-//   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-// }
-
-// void processSteps()
-// {
-//
-// }
-
-// void calculate()
-// {
-//   processSteps();
-//   processBody();
-
-//   Serial.print("\tx:\t" + String(coor_x));
-//   Serial.println("\ty:\t" + String(coor_y));
-//   //Serial.print("\tlegs: \t" + String(stepsPower));
-// }
-
-//===========================================================
-//  crouch logic
-
-bool isCrouch()
-{
-  return chestAccel.getAltitude() < -0.6;
-}
-
-double getCrouchPower()
-{
-  double val = chestAccel.getAltitude() + 0.6;
-  return val > 0 ? val : -val;
-}
-
-//===========================================================
-//  jump logic
-
-double getJumpingPower()
-{
-  return chestAccel.getAccelZ() > 0 ? chestAccel.getAccelZ() : 0;
-}
-double isJumping()
-{
-  return getJumpingPower() > 5;
-}
-//===========================================================
-//  bend logic
-
-int getBendingDirection()
-{
-  double y = chestAccel.getPitch();
-  double x = chestAccel.getRoll();
-
-  double val = 0;
-  if ((x > 0) && (y >= 0))
-  {
-    val = atan(y / x);
-  }
-
-  else if ((x > 0) && (y < 0))
-  {
-    val = atan(y / x) + 2 * PI;
-  }
-
-  else if (x < 0)
-  {
-    val = atan(y / x) + PI;
-  }
-
-  else if ((x == 0) && (y > 0))
-  {
-    val = PI / 2;
-  }
-
-  else if ((x == 0) && (y < 0))
-  {
-    val = (3 * PI) / 2;
-  }
-
-  else if ((x == 0) && (y == 0))
-  {
-    val = 0;
-  }
-
-  return (val * 180.0) / PI;
-}
-
-double getBendingPower()
-{
-
-  int x = chestAccel.getPitch();
-  int y = chestAccel.getRoll();
-
-  return sqrt((x * x) + (y * y));
-}
-
-bool isBending()
-{
-  return getBendingPower() > 5;
-}
-
-//===========================================================
-//  running logic
-
-double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
-{
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-// right
-
-bool isRStepDone = false;
-int rCurStepState = 0, rPrevStepState = 0, rStepsCount = 0;
-
-long rTimeCounter = 0;
-double rMovementCount = 0;
-
-double getRWalkingPower()
-{
-  return (rMovementCount / (rTimeCounter / 33.0));
-}
-
-bool isCruiseControl()
-{
-  return rTimeCounter > 1000;
-}
-
-int getCruiseControlPower()
-{
-  return abs((int)rightShoeAccel.getRoll());
-}
-
-bool isRWalking()
-{
-  isRStepDone = false;
-  rCurStepState = -rightShoeAccel.getRoll();
-  //  calculate duration of step
-
-  if (rCurStepState >= FEET_ANGLE)
-  {
-    rTimeCounter += 33;
-    rMovementCount += rightShoeAccel.getLinAccel().z() > 0 ? rightShoeAccel.getLinAccel().z() : -rightShoeAccel.getLinAccel().z();
-  }
-
-  if ((rCurStepState < FEET_ANGLE) && (rPrevStepState >= FEET_ANGLE))
-  {
-    isRStepDone = true;
-
-    rMovementCount = 0;
-    rTimeCounter = 0;
-  }
-  rPrevStepState = rCurStepState;
-
-  return rTimeCounter > 0;
-
-  //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
-  //  after that we measure the acceleration power and calculate step power
-}
-
-//left
-
-bool isLStepDone = false;
-int lCurStepState = 0, lPrevStepState = 0, lStepsCount = 0;
-
-long lTimeCounter = 0;
-double lMovementCount = 0;
-
-double getLWalkingPower()
-{
-  return (lMovementCount / (lTimeCounter / 33.0));
-}
-
-bool isLWalking()
-{
-  isLStepDone = false;
-  lCurStepState = -leftShoeAccel.getRoll();
-  //  calculate duration of step
-
-  if (lCurStepState >= FEET_ANGLE)
-  {
-    lTimeCounter += 33;
-    lMovementCount += leftShoeAccel.getLinAccel().z() > 0 ? leftShoeAccel.getLinAccel().z() : -leftShoeAccel.getLinAccel().z();
-  }
-
-  if ((lCurStepState < FEET_ANGLE) && (lPrevStepState >= FEET_ANGLE))
-  {
-    isLStepDone = true;
-
-    lMovementCount = 0;
-    lTimeCounter = 0;
-  }
-  lPrevStepState = lCurStepState;
-
-  return lTimeCounter > 0;
-}
-//===========================================================
-//  stepback logic
-
-int getStepBackPower()
-{
-  return rightBackFoot.readRaw();
-}
-
-bool isStepBack()
-{
-  return getStepBackPower() > 200;
-}
-
-//
-//  sidestep
-
-int getSidePower()
-{
-  return rightSideFoot.readRaw();
-}
-
-bool isSideStep()
-{
-  return getSidePower() > 200;
-}
-
 //=====================================================================
 //  Movement Translating
 //=====================================================================
 
 void translateTheMovement()
 {
-  if (currentOutput == MOVEMENT_OUTPUT)
+  if (currentOutput == MOVEMENT_CHEST_OUTPUT)
   {
-    // //jump output
-    // Serial.print("\tJump:" + String(isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(isJumping() ? String(getJumpingPower()) : "\t"));
+    //jump output
+    Serial.print("\tJump:" + String(chest->isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(chest->isJumping() ? String(chest->getJumpingPower()) : "\t"));
 
     //bend output
-    Serial.print("\tBend:");
+    Serial.print("Chest\tBend:");
 
-    if (!isBending())
+    if (!chest->isBending())
       Serial.print("\tStraight\t");
     else
     {
-      if ((getBendingDirection() > 315) || (getBendingDirection() <= 45))
+      if ((chest->getBendingDirection() > 315) || (chest->getBendingDirection() <= 45))
         Serial.print("\tbackward");
 
-      else if ((getBendingDirection() > 225) && (getBendingDirection() <= 315))
+      else if ((chest->getBendingDirection() > 225) && (chest->getBendingDirection() <= 315))
         Serial.print("\tleft");
 
-      else if ((getBendingDirection() > 135) && (getBendingDirection() <= 225))
+      else if ((chest->getBendingDirection() > 135) && (chest->getBendingDirection() <= 225))
         Serial.print("\tforward");
 
-      else if ((getBendingDirection() > 45) && (getBendingDirection() <= 135))
+      else if ((chest->getBendingDirection() > 45) && (chest->getBendingDirection() <= 135))
         Serial.print("\tright");
 
-      Serial.print(String("\t") + getBendingDirection());
-      Serial.print(String("\t") + getBendingPower());
+      Serial.print(String("\t") + chest->getBendingDirection());
+      Serial.print(String("\t") + chest->getBendingPower());
+
+      //crouch output F
+
+      // Serial.print("\tCrouch:");
+      // if (isCrouch())
+      // {
+      //   Serial.print("\tDetected" + String("\t") + String(getCrouchPower()));
+      // }
+      // else
+      //   Serial.print("\tNothing");
+      Serial.println();
     }
+  }
 
-    //crouch output F
+  // right
 
-    // Serial.print("\tCrouch:");
-    // if (isCrouch())
-    // {
-    //   Serial.print("\tDetected" + String("\t") + String(getCrouchPower()));
-    // }
-    // else
-    //   Serial.print("\tNothing");
-
+  if (currentOutput == MOVEMENT_RIGHT_OUTPUT)
+  {
     //running output right
 
-    Serial.print("\tRight:");
-    if (isRWalking())
-      Serial.print(String("\t") + String(getRWalkingPower()));
-
+    Serial.print("Right foot\tWalk:");
+    if (rightFoot->isWalking())
+      Serial.print(String("\t") + String(rightFoot->getWalkingPower()));
     else
-      Serial.print("\tNothing");
-
-    //running output left
-
-    Serial.print("\tLeft:");
-    if (isLWalking())
-      Serial.print(String("\t") + String(getLWalkingPower()));
-
-    else
-      Serial.print("\tNothing");
+      Serial.print("\tNothing\t");
 
     //special things
 
-    // if (isCruiseControl())
-    // {
-    //   Serial.print("\tCruise");
-    //   Serial.print(String("\t") + String(getCruiseControlPower()));
-    // }
-
-    //  -stepback
-
-    // if (isStepBack())
-    // {
-    //   Serial.print("\tStepback");
-    //   Serial.print(String("\t") + String(getStepBackPower()));
-    // }
-
-    if (isSideStep())
+    Serial.print("\tCruise");
+    if (rightFoot->isCruiseControl())
     {
-      Serial.print("\tStepside");
-      Serial.print(String("\t") + String(getSidePower()));
+      Serial.print(String("\t") + String(rightFoot->getCruiseControlPower()));
     }
+    else
+      Serial.print("\tNothing\t");
 
+    //step back
+
+    Serial.print("\tStepback");
+    if (rightFoot->isStepBack())
+    {
+      Serial.print(String("\t") + String(rightFoot->getStepBackPower()));
+    }
+    else
+      Serial.print("\tNothing\t");
+
+    //step side
+
+    Serial.print("\tStepside");
+    if (rightFoot->isSideStep())
+    {
+      Serial.print(String("\t") + String(rightFoot->getSidePower()));
+    }
+    else
+      Serial.print("\tNothing\t");
+    Serial.println();
+  }
+
+  // left
+
+  if (currentOutput == MOVEMENT_LEFT_OUTPUT)
+  {
+    //running output right
+
+    Serial.print("Left foot\tWalk:");
+    if (leftFoot->isWalking())
+      Serial.print(String("\t") + String(leftFoot->getWalkingPower()));
+
+    else
+      Serial.print("\tNothing\t");
+
+    //special things
+
+    Serial.print("\tCruise");
+    if (leftFoot->isCruiseControl())
+      Serial.print(String("\t") + String(leftFoot->getCruiseControlPower()));
+
+    else
+      Serial.print("\tNothing\t");
+
+    //step back
+
+    Serial.print("\tStepback");
+    if (leftFoot->isStepBack())
+    {
+      Serial.print(String("\t") + String(leftFoot->getStepBackPower()));
+    }
+    else
+      Serial.print("\tNothing\t");
+
+    //step side
+
+    Serial.print("\tStepside");
+    if (leftFoot->isSideStep())
+    {
+      Serial.print(String("\t") + String(leftFoot->getSidePower()));
+    }
+    else
+      Serial.print("\tNothing\t");
     Serial.println();
   }
 }
@@ -604,42 +442,42 @@ void printRawChest()
 {
 
   Serial.print("chest:");
-  Serial.print("\tp\t" + String(chestAccel.getPitch()));
-  Serial.print("\tr\t" + String(chestAccel.getRoll()));
-  Serial.print("\taZ\t" + String(chestAccel.getAccelZ()));
-  Serial.println("\talt\t" + String(chestAccel.getAltitude()));
+  Serial.print("\tp\t" + String(chestAccel->getPitch()));
+  Serial.print("\tr\t" + String(chestAccel->getRoll()));
+  Serial.print("\taZ\t" + String(chestAccel->getAccelZ()));
+  Serial.println("\talt\t" + String(chestAccel->getAltitude()));
 }
 
 void printRawRightShoe()
 {
   Serial.print("rshoe:");
-  Serial.print("\tax\t" + String(rightShoeAccel.getLinAccel().x()));
-  Serial.print("\tay\t" + String(rightShoeAccel.getLinAccel().y()));
-  Serial.print("\taz\t" + String(rightShoeAccel.getLinAccel().z()));
+  Serial.print("\tax\t" + String(rightShoeAccel->getLinAccel().x()));
+  Serial.print("\tay\t" + String(rightShoeAccel->getLinAccel().y()));
+  Serial.print("\taz\t" + String(rightShoeAccel->getLinAccel().z()));
 
-  Serial.print("\ty\t" + String(rightShoeAccel.getYaw()));
-  Serial.print("\tr\t" + String(rightShoeAccel.getRoll()));
-  Serial.print("\tp\t" + String(rightShoeAccel.getPitch()));
+  Serial.print("\ty\t" + String(rightShoeAccel->getYaw()));
+  Serial.print("\tr\t" + String(rightShoeAccel->getRoll()));
+  Serial.print("\tp\t" + String(rightShoeAccel->getPitch()));
 
   Serial.print("\tweight:");
-  Serial.print("\ts\t" + String(rightSideFoot.readRaw()));
-  Serial.println("\tb\t" + String(rightBackFoot.readRaw()));
+  Serial.print("\ts\t" + String(rightSideFoot->readRaw()));
+  Serial.println("\tb\t" + String(rightBackFoot->readRaw()));
 }
 
 void printRawLeftShoe()
 {
   Serial.print("lshoe:");
-  Serial.print("\tax\t" + String(leftShoeAccel.getLinAccel().x()));
-  Serial.print("\tay\t" + String(leftShoeAccel.getLinAccel().y()));
-  Serial.print("\taz\t" + String(leftShoeAccel.getLinAccel().z()));
+  Serial.print("\tax\t" + String(leftShoeAccel->getLinAccel().x()));
+  Serial.print("\tay\t" + String(leftShoeAccel->getLinAccel().y()));
+  Serial.print("\taz\t" + String(leftShoeAccel->getLinAccel().z()));
 
-  Serial.print("\ty\t" + String(leftShoeAccel.getYaw()));
-  Serial.print("\tr\t" + String(leftShoeAccel.getRoll()));
-  Serial.print("\tp\t" + String(leftShoeAccel.getPitch()));
+  Serial.print("\ty\t" + String(leftShoeAccel->getYaw()));
+  Serial.print("\tr\t" + String(leftShoeAccel->getRoll()));
+  Serial.print("\tp\t" + String(leftShoeAccel->getPitch()));
 
   Serial.print("\tweight:");
-  Serial.print("\ts\t" + String(leftSideFoot.readRaw()));
-  Serial.println("\tb\t" + String(leftBackFoot.readRaw()));
+  Serial.print("\ts\t" + String(leftSideFoot->readRaw()));
+  Serial.println("\tb\t" + String(leftBackFoot->readRaw()));
 }
 
 void printRawValues()

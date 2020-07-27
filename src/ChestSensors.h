@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-class ChestController
+class ChestSensors
 {
 private:
     SoftwareSerial *mySerial;
@@ -14,7 +14,7 @@ private:
     double altitude;
 
 public:
-    ChestController()
+    ChestSensors()
     {
         mySerial = new SoftwareSerial(3, 2);
         mySerial->begin(9600);
