@@ -69,7 +69,7 @@ void setup()
     rightShoeAccel.calibrate();
     Serial.print(".");
     delay(50);
-  } 
+  }
   Serial.println("\nDone!");
   Serial.println("Program started!");
 
@@ -365,10 +365,20 @@ double getRWalkingPower()
   return (rMovementCount / (rTimeCounter / 33.0));
 }
 
+bool isCruiseControl()
+{
+  return rTimeCounter > 1000;
+}
+
+int getCruiseControlPower()
+{
+  return abs((int)rightShoeAccel.getRoll());
+}
+
 bool isRWalking()
 {
   isRStepDone = false;
-  rCurStepState = abs((int)rightShoeAccel.getRoll());
+  rCurStepState = -rightShoeAccel.getRoll();
   //  calculate duration of step
 
   if (rCurStepState >= FEET_ANGLE)
@@ -408,7 +418,7 @@ double getLWalkingPower()
 bool isLWalking()
 {
   isLStepDone = false;
-  lCurStepState = abs((int)leftShoeAccel.getRoll());
+  lCurStepState = -leftShoeAccel.getRoll();
   //  calculate duration of step
 
   if (lCurStepState >= FEET_ANGLE)
@@ -428,6 +438,31 @@ bool isLWalking()
 
   return lTimeCounter > 0;
 }
+//===========================================================
+//  stepback logic
+
+int getStepBackPower()
+{
+  return rightBackFoot.readRaw();
+}
+
+bool isStepBack()
+{
+  return getStepBackPower() > 200;
+}
+
+//
+//  sidestep
+
+int getSidePower()
+{
+  return rightSideFoot.readRaw();
+}
+
+bool isSideStep()
+{
+  return getSidePower() > 200;
+}
 
 //=====================================================================
 //  Movement Translating
@@ -437,8 +472,8 @@ void translateTheMovement()
 {
   if (currentOutput == MOVEMENT_OUTPUT)
   {
-    //jump output
-    Serial.print("\tJump:" + String(isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(isJumping() ? String(getJumpingPower()) : "\t"));
+    // //jump output
+    // Serial.print("\tJump:" + String(isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(isJumping() ? String(getJumpingPower()) : "\t"));
 
     //bend output
     Serial.print("\tBend:");
@@ -463,7 +498,7 @@ void translateTheMovement()
       Serial.print(String("\t") + getBendingPower());
     }
 
-    //crouch output
+    //crouch output F
 
     // Serial.print("\tCrouch:");
     // if (isCrouch())
@@ -478,7 +513,7 @@ void translateTheMovement()
     Serial.print("\tRight:");
     if (isRWalking())
       Serial.print(String("\t") + String(getRWalkingPower()));
-    
+
     else
       Serial.print("\tNothing");
 
@@ -487,15 +522,31 @@ void translateTheMovement()
     Serial.print("\tLeft:");
     if (isLWalking())
       Serial.print(String("\t") + String(getLWalkingPower()));
-    
+
     else
       Serial.print("\tNothing");
 
     //special things
-    
-    //stepback
-    //sidestep
-    //cruise control
+
+    // if (isCruiseControl())
+    // {
+    //   Serial.print("\tCruise");
+    //   Serial.print(String("\t") + String(getCruiseControlPower()));
+    // }
+
+    //  -stepback
+
+    // if (isStepBack())
+    // {
+    //   Serial.print("\tStepback");
+    //   Serial.print(String("\t") + String(getStepBackPower()));
+    // }
+
+    if (isSideStep())
+    {
+      Serial.print("\tStepside");
+      Serial.print(String("\t") + String(getSidePower()));
+    }
 
     Serial.println();
   }
