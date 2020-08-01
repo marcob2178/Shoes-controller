@@ -5,7 +5,6 @@
 #include <SPI.h>
 #include "Settings.h"
 
-
 /*
   if (pox == 2) {  //crawl
     pot1.setWiper0(127);
@@ -29,6 +28,7 @@ class Joystick
 private:
     MCP4261 *pot0;
     int ver_min, ver_max, ver_middle, hor_min, hor_max, hor_middle;
+    int pin_button;
 
 public:
     void setCalibrationData(int _ver_min, int _ver_max, int _ver_middle, int _hor_min, int _hor_max, int _hor_middle)
@@ -79,17 +79,21 @@ public:
         }
     }
 
-    void pressButton(){
-
-    }
-
-    void releaseButton(){
-
-    }
-
-    void begin(int pin)
+    void pressButton()
     {
-        pot0 = new MCP4261(pin);   
+        digitalWrite(pin_button, LOW);
+    }
+
+    void releaseButton()
+    {
+        digitalWrite(pin_button, HIGH);
+    }
+
+    void begin(int pin_cs, int _pin_button)
+    {
+        pin_button = _pin_button;
+        pinMode(pin_button, OUTPUT);
+        pot0 = new MCP4261(pin_cs);
         // Setup SPI communications
         SPI.setDataMode(SPI_MODE0);
         SPI.setBitOrder(MSBFIRST);
@@ -98,9 +102,11 @@ public:
 
         // Initialize potentiometers
         pot0->initialize();
+
+        releaseButton();
     }
 
-    void doCalibration()    
+    void doCalibration()
     {
         if (Serial.available() > 0)
         {

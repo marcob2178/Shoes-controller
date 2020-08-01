@@ -46,7 +46,6 @@ public:
         //bno->setExtCrystalUse(true);
         delay(500);
         
-        bno->printSensorDetails();
         calibrate();
     }
 

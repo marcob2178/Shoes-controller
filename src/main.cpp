@@ -10,9 +10,9 @@
 
 /*  
 TODO: 
-1) Solve the controller problem, add different solutions for different systems (buttons, joystick up-down), could be enabled/ through the code.
-2) Add logic for bend and the direction of moving
-3) Add side moving with Weight sensors or based on accelerometer
+  - bending doesn't works in cause in some problem.
+  - do not counts the another leg moving
+  - stops measure sometimes -> need to proove
 
 
 STACK:
@@ -30,11 +30,7 @@ void printRawLeftShoe();
 void updateRawData();
 void translateTheMovement();
 void parseSerial();
-
-double valX_offcet = 0;
-double valY_offcet = 0;
-double valZ_offcet = 0;
-int coor_x = 0, coor_y = 0;
+void printTheMovement();
 
 Joystick joystickForMove;
 Joystick joystickForJC; //jump and crouch
@@ -68,13 +64,11 @@ void setup()
   leftFoot = new Foot(leftShoeAccel, leftSideFoot, leftBackFoot);
 
   delay(1000);
-  pinMode(LEFT_BUTTON_PIN, OUTPUT);
-  pinMode(RIGHT_BUTTON_PIN, OUTPUT);
 
-  joystickForMove.begin(POT_0_CS);
-  joystickForJC.begin(POT_1_CS);
-  joystickForMove.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
-                                     VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
+  joystickForMove.begin(POT_0_CS, LEFT_BUTTON_PIN);
+  joystickForJC.begin(POT_1_CS, RIGHT_BUTTON_PIN);
+  joystickForMove.setCalibrationData(3, 252, 128,
+                                     3, 252, 128);
   joystickForJC.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
                                    VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
 
@@ -92,10 +86,6 @@ void setup()
   }
   Serial.println("\nDone!");
   Serial.println("Program started!");
-
-  valX_offcet = rightShoeAccel->getLinAccel().x();
-  valY_offcet = rightShoeAccel->getLinAccel().y();
-  valZ_offcet = rightShoeAccel->getLinAccel().z();
 }
 
 long long timer = 0;
@@ -108,26 +98,13 @@ void loop()
 
     parseSerial();
 
+    printTheMovement();
     translateTheMovement();
   }
 }
 
 //   printAccelerationOffset();
 //   calculate();
-
-//   // if (coor_x >= CHEST_FORWARD_MIN)
-//   //   joystick.setVer(coor_x);
-//   // else if (coor_x <= -CHES  T_BACKWARD_MIN)
-//   //   joystick.setVer(coor_x);
-//   // else
-//   //   joystick.setVer(0);
-
-//   // if (abs(coor_y) > CHEST_LEFT_MIN)
-//   //   joystick.setHor(coor_y);
-//   // else if (coor_y <= -CHEST_RIGHT_MIN)
-//   //   joystick.setHor(coor_y);
-//   // else
-//   //   joystick.setHor(0);
 
 //   //Serial.println("\tLoop time = " + String(int(timer - millis())));
 // }
@@ -198,73 +175,157 @@ void updateRawData()
 }
 
 //=====================================================================
-//  Movement calculations
-//=====================================================================
-
-/* 
-Movement recognition:
-- Jump (weight sensord + accelerations)
-- Crouch  (acceleration?)
-- Walk(shoes acceleration + body's angle)
-- Cruise Control (shoes angle)
-
-Detected behavior:
-- Usual shoes angles when walk - 0 .. 30 degrees (roll)
-
-small slow: 20-30% and 20ms
-huge slow: 20-30% and 500ms
-small quick: 70-100% and 20ms
-huge quick: 70-100% and 500ms
-
-also, we need to scale body's bend:
-like 0-45 deg to 0-100%
-
-*/
-
-// void processBody()
-// {
-//   Serial.print("\tbody angle is:\t" + String(chestAccel.getPitch()));
-//   Serial.print("\t" + String(chestAccel.getRoll()));
-
-//   //calculating of forward-backward/vertical movement
-//   if (chestAccel.getRoll() < -180)
-//   {
-//     int roll = chestAccel.getRoll() + 360;
-//     coor_x = map(roll, 0, CHEST_BACKWARD_MAX, 0, -100);
-//   }
-//   else
-//     coor_x = map(chestAccel.getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
-
-//   if (coor_x > 100)
-//     coor_x = 100;
-//   if (coor_x < -100)
-//     coor_x = -100;
-
-//   //calculating of right-left/horizontal movement
-//   if (chestAccel.getPitch() < -180)
-//   {
-//     int pitch = chestAccel.getPitch() + 360;
-//     coor_y = map(pitch, 0, CHEST_RIGHT_MAX, 0, 100);
-//   }
-//   else
-//     coor_y = map(chestAccel.getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
-
-//   if (coor_y > 100)
-//     coor_y = 100;
-//   if (coor_y < -100)
-//     coor_y = -100;
-// }
-
-//=====================================================================
 //  Movement Translating
 //=====================================================================
 
+/*
+the boneworks has:
+1) Moving with left joystick/left controller in all direction to walk (no press of the joystick button)
+2) Moving with left joystick/left controller in all direction while keeping pressed the left joystick button . This is to run
+3) jump = is the press of the right joystick
+4) crouch = is the moving of the right joystick down
+
+*/
+
+void translateBending()
+{
+  int coor_x = 0, coor_y = 0;
+  //Serial.print("body angle is:\t" + String(chestAccel->getPitch()) + "\t");
+  //Serial.print(String(chestAccel->getRoll()) + "\t");
+
+  // //calculating of forward-backward/vertical movement
+  // if (chestAccel->getRoll() < 0)
+  // {
+  //   coor_x = map(chestAccel->getRoll(), 0, CHEST_BACKWARD_MAX, 0, -100);
+  // }
+  // else
+  //   coor_x = map(chestAccel->getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
+
+  // if (coor_x > 100)
+  //   coor_x = 100;
+  // if (coor_x < -100)
+  //   coor_x = -100;
+
+  // //calculating of right-left/horizontal movement
+  // if (chestAccel->getPitch() < 0)
+  //   coor_y = map(chestAccel->getPitch(), 0, CHEST_RIGHT_MAX, 0, 100);
+  // else
+  //   coor_y = map(chestAccel->getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+
+  // if (coor_y > 100)
+  //   coor_y = 100;
+  // if (coor_y < -100)
+  //   coor_y = -100;
+
+  coor_x = chest->getBendingPower() * 3 * cos(chest->getBendingDirection() / 57.297469);
+  coor_y = chest->getBendingPower() * 3 * sin(chest->getBendingDirection() / 57.297469);
+
+  if (coor_x > 100)
+    coor_x = 100;
+  if (coor_x < -100)
+    coor_x = -100;
+
+  if (coor_y > 100)
+    coor_y = 100;
+  if (coor_y < -100)
+    coor_y = -100;
+
+  if (coor_x >= CHEST_FORWARD_MIN)
+    joystickForMove.setVer(coor_x);
+  else if (coor_x <= -CHEST_BACKWARD_MIN)
+    joystickForMove.setVer(coor_x);
+  else
+    joystickForMove.setVer(0);
+
+  if (coor_y >= CHEST_LEFT_MIN)
+    joystickForMove.setHor(coor_y);
+  else if (coor_y <= -CHEST_RIGHT_MIN)
+    joystickForMove.setHor(coor_y);
+  else
+    joystickForMove.setHor(0);
+
+  // Serial.print(String(coor_x) + "\t");
+  // Serial.println(String(coor_y) + "\t");
+}
+
 void translateTheMovement()
+{
+  bool isRightFootWalking = rightFoot->isWalking();
+  bool isLeftFootWalking = leftFoot->isWalking();
+
+  //
+  // //bending control
+  // if (chest->isBending())
+  // {
+  //   translateBending();
+  // }
+  // //cruise control
+  // else if (false)
+  // {
+  // }
+
+  //walking
+  //
+  if (isRightFootWalking || isLeftFootWalking)
+  {
+    if (rightFoot->getWalkingPower() > leftFoot->getWalkingPower())
+      joystickForMove.setVer(Foot::mapDouble(rightFoot->getWalkingPower(), 0, 3, 0, 100));
+    else
+      joystickForMove.setVer(Foot::mapDouble(leftFoot->getWalkingPower(), 0, 3, 0, 100));
+  }
+  //side moving
+  else if (rightFoot->isSideStep())
+  {
+    joystickForMove.setHor(map(rightFoot->getSidePower(), 200, 950, 0, 100));
+    Serial.println(map(rightFoot->getSidePower(), 200, 950, 0, 100));
+  }
+  else if (leftFoot->isSideStep())
+  {
+    joystickForMove.setHor(-map(leftFoot->getSidePower(), 200, 950, 0, 100));
+    Serial.println(-map(leftFoot->getSidePower(), 200, 950, 0, 100));
+  }
+
+  //back moving
+
+  else if (rightFoot->isStepBack())
+  {
+    joystickForMove.setVer(-map(rightFoot->getStepBackPower(), 200, 850, 0, 100));
+    Serial.println(-map(rightFoot->getStepBackPower(), 200, 850, 0, 100));
+  }
+  else if (leftFoot->isStepBack())
+  {
+    joystickForMove.setVer(-map(leftFoot->getStepBackPower(), 200, 850, 0, 100));
+    Serial.println(-map(leftFoot->getStepBackPower(), 200, 850, 0, 100));
+  }
+
+  //default for moving joystick
+  else
+  {
+    joystickForMove.setHor(0);
+    joystickForMove.setVer(0);
+  }
+
+  //jump
+  if (chest->isJumping())
+  {
+    joystickForJC.pressButton();
+  }
+  else
+  {
+    joystickForJC.releaseButton();
+  }
+}
+
+//=====================================================================
+//  Prints
+//=====================================================================
+
+void printTheMovement()
 {
   if (currentOutput == MOVEMENT_CHEST_OUTPUT)
   {
     //jump output
-    Serial.print("\tJump:" + String(chest->isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(chest->isJumping() ? String(chest->getJumpingPower()) : "\t"));
+    Serial.print("\tJump:" + String(chest->isJumping() ? "\tDetected" : "\tNothing") + String("\t") + String(chest->isJumping() ? String(chest->getJumpingPower()) : "\t") + String("\t"));
 
     //bend output
     Serial.print("Chest\tBend:");
@@ -287,18 +348,19 @@ void translateTheMovement()
 
       Serial.print(String("\t") + chest->getBendingDirection());
       Serial.print(String("\t") + chest->getBendingPower());
-
-      //crouch output F
-
-      // Serial.print("\tCrouch:");
-      // if (isCrouch())
-      // {
-      //   Serial.print("\tDetected" + String("\t") + String(getCrouchPower()));
-      // }
-      // else
-      //   Serial.print("\tNothing");
-      Serial.println();
     }
+
+    //crouch output F
+
+    // Serial.print("\tCrouch:");
+    // if (isCrouch())
+    // {
+    //   Serial.print("\tDetected" + String("\t") + String(getCrouchPower()));
+    // }
+    // else
+    //   Serial.print("\tNothing");
+
+    Serial.println();
   }
 
   // right
@@ -389,54 +451,6 @@ void translateTheMovement()
     Serial.println();
   }
 }
-
-// void sendCommandMoving(int direction, int power)
-// {
-//   switch (direction)
-//   {
-//   case DIRECTION_RIGHT:
-//     //joystickForMove.setHor();
-//     break;
-//   }
-// }
-
-// //FS(final speed) =( BA(bending angle in percents) * SF(scale factor) ) x WS(walking speed)
-// int convertSpeedForJoystick()
-// {
-//   //need to implement some calculations
-//   getWalkingSpeed();
-// }
-
-//=====================================================================
-//  Prints
-//=====================================================================
-
-// if (millis() > timer)
-// {
-//   timer = millis() + 33;
-//   chestAccel.update();
-//   rightShoeAccel.update();
-//   leftShoeAccel.update();
-
-//   printAccelerationOffset();
-//   calculate();
-
-//   // if (coor_x >= CHEST_FORWARD_MIN)
-//   //   joystick.setVer(coor_x);
-//   // else if (coor_x <= -CHEST_BACKWARD_MIN)
-//   //   joystick.setVer(coor_x);
-//   // else
-//   //   joystick.setVer(0);
-
-//   // if (abs(coor_y) > CHEST_LEFT_MIN)
-//   //   joystick.setHor(coor_y);
-//   // else if (coor_y <= -CHEST_RIGHT_MIN)
-//   //   joystick.setHor(coor_y);
-//   // else
-//   //   joystick.setHor(0);
-
-//   //Serial.println("\tLoop time = " + String(int(timer - millis())));
-// }
 
 void printRawChest()
 {
