@@ -31,9 +31,10 @@ void updateRawData();
 void translateTheMovement();
 void parseSerial();
 void printTheMovement();
+void updateJoysticks();
 
-Joystick joystickForMove;
-Joystick joystickForJC; //jump and crouch
+Joystick leftJoystick;
+Joystick rightJoystick; //jump and crouch
 ChestSensors *chestAccel;
 Accelerometer *rightShoeAccel;
 Accelerometer *leftShoeAccel;
@@ -65,11 +66,11 @@ void setup()
 
   delay(1000);
 
-  joystickForMove.begin(POT_0_CS, LEFT_BUTTON_PIN);
-  joystickForJC.begin(POT_1_CS, RIGHT_BUTTON_PIN);
-  joystickForMove.setCalibrationData(3, 252, 128,
-                                     3, 252, 128);
-  joystickForJC.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
+  leftJoystick.begin(POT_0_CS, LEFT_BUTTON_PIN);
+  rightJoystick.begin(POT_1_CS, RIGHT_BUTTON_PIN);
+  leftJoystick.setCalibrationData(3, 252, 128,
+                                  3, 252, 128);
+  rightJoystick.setCalibrationData(HORIZONT_MIN, HORIZONT_MAX, HORIZONT_MIDDLE,
                                    VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
 
   rightShoeAccel->begin();
@@ -120,6 +121,7 @@ void loop()
 #define MOVEMENT_CHEST_OUTPUT 4
 #define MOVEMENT_RIGHT_OUTPUT 5
 #define MOVEMENT_LEFT_OUTPUT 6
+#define MOVEMENT_TRANSLATING_OUTPUT 7
 
 int currentOutput = 0;
 
@@ -142,6 +144,8 @@ void parseSerial()
       currentOutput = MOVEMENT_LEFT_OUTPUT;
     if (mess == 'n')
       currentOutput = NO_OUTPUT;
+    if (mess == 't')
+      currentOutput = MOVEMENT_TRANSLATING_OUTPUT;
   }
 }
 
@@ -187,9 +191,13 @@ the boneworks has:
 
 */
 
+int left_x, left_y;
+int left_button_state;
+int right_x, right_y;
+int right_button_state;
+
 void translateBending()
 {
-  int coor_x = 0, coor_y = 0;
   //Serial.print("body angle is:\t" + String(chestAccel->getPitch()) + "\t");
   //Serial.print(String(chestAccel->getRoll()) + "\t");
 
@@ -217,32 +225,32 @@ void translateBending()
   // if (coor_y < -100)
   //   coor_y = -100;
 
-  coor_x = chest->getBendingPower() * 3 * cos(chest->getBendingDirection() / 57.297469);
-  coor_y = chest->getBendingPower() * 3 * sin(chest->getBendingDirection() / 57.297469);
+  // coor_x = chest->getBendingPower() * 3 * cos(chest->getBendingDirection() / 57.297469);
+  // coor_y = chest->getBendingPower() * 3 * sin(chest->getBendingDirection() / 57.297469);
 
-  if (coor_x > 100)
-    coor_x = 100;
-  if (coor_x < -100)
-    coor_x = -100;
+  // if (coor_x > 100)
+  //   coor_x = 100;
+  // if (coor_x < -100)
+  //   coor_x = -100;
 
-  if (coor_y > 100)
-    coor_y = 100;
-  if (coor_y < -100)
-    coor_y = -100;
+  // if (coor_y > 100)
+  //   coor_y = 100;
+  // if (coor_y < -100)
+  //   coor_y = -100;
 
-  if (coor_x >= CHEST_FORWARD_MIN)
-    joystickForMove.setVer(coor_x);
-  else if (coor_x <= -CHEST_BACKWARD_MIN)
-    joystickForMove.setVer(coor_x);
-  else
-    joystickForMove.setVer(0);
+  // if (coor_x >= CHEST_FORWARD_MIN)
+  //   joystickForMove.setVer(coor_x);
+  // else if (coor_x <= -CHEST_BACKWARD_MIN)
+  //   joystickForMove.setVer(coor_x);
+  // else
+  //   joystickForMove.setVer(0);
 
-  if (coor_y >= CHEST_LEFT_MIN)
-    joystickForMove.setHor(coor_y);
-  else if (coor_y <= -CHEST_RIGHT_MIN)
-    joystickForMove.setHor(coor_y);
-  else
-    joystickForMove.setHor(0);
+  // if (coor_y >= CHEST_LEFT_MIN)
+  //   joystickForMove.setHor(coor_y);
+  // else if (coor_y <= -CHEST_RIGHT_MIN)
+  //   joystickForMove.setHor(coor_y);
+  // else
+  //   joystickForMove.setHor(0);
 
   // Serial.print(String(coor_x) + "\t");
   // Serial.println(String(coor_y) + "\t");
@@ -253,67 +261,127 @@ void translateTheMovement()
   bool isRightFootWalking = rightFoot->isWalking();
   bool isLeftFootWalking = leftFoot->isWalking();
 
-  //
-  // //bending control
-  // if (chest->isBending())
-  // {
-  //   translateBending();
-  // }
-  // //cruise control
-  // else if (false)
-  // {
-  // }
+  //bending control
+  if (chest->isBending())
+  {
+
+    // left_x = chest->getBendingPower() * 2 * cos(chest->getBendingDirection() / 57.2957795130823208);
+    // // if (((left_x < CHEST_LEFT_MIN) && (left_x > 0)) || ((left_x > -CHEST_RIGHT_MIN) && (left_x < 0)))
+    // //   left_x = 0;
+
+    // left_y = chest->getBendingPower() * 2 * sin(chest->getBendingDirection() / 57.2957795130823208);
+    // // if (((left_y < CHEST_LEFT_MIN) && (left_y > 0)) || ((left_y > -CHEST_RIGHT_MIN) && (left_y < 0)))
+    // //   left_y = 0;
+
+    if (chestAccel->getRoll() < 0)
+      left_x = map(chestAccel->getRoll(), 0, CHEST_BACKWARD_MAX, 0, -100);
+    else
+      left_x = map(chestAccel->getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
+
+    //calculating of right-left/horizontal movement
+    if (chestAccel->getPitch() < 0)
+      left_y = map(chestAccel->getPitch(), 0, CHEST_RIGHT_MAX, 0, 100);
+    else
+      left_y = map(chestAccel->getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+  }
+
+  //cruise control
+  else if ((2 + 2) == 5)
+  {
+  }
 
   //walking
-  //
-  if (isRightFootWalking || isLeftFootWalking)
+  else if (isRightFootWalking || isLeftFootWalking)
   {
     if (rightFoot->getWalkingPower() > leftFoot->getWalkingPower())
-      joystickForMove.setVer(Foot::mapDouble(rightFoot->getWalkingPower(), 0, 3, 0, 100));
+      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 3, 0, 100);
     else
-      joystickForMove.setVer(Foot::mapDouble(leftFoot->getWalkingPower(), 0, 3, 0, 100));
+      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 3, 0, 100);
   }
+
   //side moving
   else if (rightFoot->isSideStep())
   {
-    joystickForMove.setHor(map(rightFoot->getSidePower(), 200, 950, 0, 100));
-    Serial.println(map(rightFoot->getSidePower(), 200, 950, 0, 100));
+    left_x = map(rightFoot->getSidePower(), 200, 950, 0, 100);
   }
+
   else if (leftFoot->isSideStep())
   {
-    joystickForMove.setHor(-map(leftFoot->getSidePower(), 200, 950, 0, 100));
-    Serial.println(-map(leftFoot->getSidePower(), 200, 950, 0, 100));
+    left_x = -map(leftFoot->getSidePower(), 200, 950, 0, 100);
   }
 
   //back moving
 
   else if (rightFoot->isStepBack())
   {
-    joystickForMove.setVer(-map(rightFoot->getStepBackPower(), 200, 850, 0, 100));
-    Serial.println(-map(rightFoot->getStepBackPower(), 200, 850, 0, 100));
+    left_y = -map(rightFoot->getStepBackPower(), 200, 850, 0, 100);
   }
+
   else if (leftFoot->isStepBack())
   {
-    joystickForMove.setVer(-map(leftFoot->getStepBackPower(), 200, 850, 0, 100));
-    Serial.println(-map(leftFoot->getStepBackPower(), 200, 850, 0, 100));
+    left_y = -map(leftFoot->getStepBackPower(), 200, 850, 0, 100);
   }
 
-  //default for moving joystick
+  //default for moving left joystick
   else
   {
-    joystickForMove.setHor(0);
-    joystickForMove.setVer(0);
+    left_x = 0;
+    left_y = 0;
   }
 
+  //=========================================
   //jump
   if (chest->isJumping())
-  {
-    joystickForJC.pressButton();
-  }
+    right_button_state = 1;
   else
+    right_button_state = 0;
+
+  updateJoysticks();
+
+  if (currentOutput == MOVEMENT_TRANSLATING_OUTPUT)
   {
-    joystickForJC.releaseButton();
+    Serial.print("Left joystick:\t" + String(left_x) + "\t" + String(left_y) + "\t" + "button\t" + String(left_button_state) + "\t");
+    Serial.println("Right joystick:\t" + String(right_x) + "\t" + String(right_y) + "\t" + "button\t" + String(right_button_state) + "\t");
   }
+}
+
+void updateJoysticks()
+{
+  if (left_x > 100)
+    left_x = 100;
+  if (left_x < -100)
+    left_x = -100;
+
+  if (left_y > 100)
+    left_y = 100;
+  if (left_y < -100)
+    left_y = -100;
+
+  if (right_x > 100)
+    right_x = 100;
+  if (right_x < -100)
+    right_x = -100;
+
+  if (right_y > 100)
+    right_y = 100;
+  if (right_y < -100)
+    right_y = -100;
+
+  leftJoystick.setHor(left_x);
+  leftJoystick.setVer(left_y);
+
+  if (left_button_state == 1)
+    leftJoystick.pressButton();
+  else
+    leftJoystick.releaseButton();
+
+  rightJoystick.setHor(left_x);
+  rightJoystick.setVer(left_y);
+
+  if (right_button_state == 1)
+    rightJoystick.pressButton();
+  else
+    rightJoystick.releaseButton();
 }
 
 //=====================================================================
