@@ -101,6 +101,9 @@ void loop()
 
     printTheMovement();
     translateTheMovement();
+
+    long time = timer - millis();
+    Serial.println(String(time));
   }
 }
 
@@ -256,58 +259,68 @@ void translateBending()
   // Serial.println(String(coor_y) + "\t");
 }
 
+int delay_value = 0;
+
 void translateTheMovement()
 {
   bool isRightFootWalking = rightFoot->isWalking();
   bool isLeftFootWalking = leftFoot->isWalking();
 
-  //bending control
-  if (chest->isBending())
+  bool xchanged = false;
+  bool ychanged = false;
+
+  //walking
+  if (isRightFootWalking || isLeftFootWalking)
   {
-
-    // left_x = chest->getBendingPower() * 2 * cos(chest->getBendingDirection() / 57.2957795130823208);
-    // // if (((left_x < CHEST_LEFT_MIN) && (left_x > 0)) || ((left_x > -CHEST_RIGHT_MIN) && (left_x < 0)))
-    // //   left_x = 0;
-
-    // left_y = chest->getBendingPower() * 2 * sin(chest->getBendingDirection() / 57.2957795130823208);
-    // // if (((left_y < CHEST_LEFT_MIN) && (left_y > 0)) || ((left_y > -CHEST_RIGHT_MIN) && (left_y < 0)))
-    // //   left_y = 0;
-
-    if (chestAccel->getRoll() < 0)
-      left_x = map(chestAccel->getRoll(), 0, CHEST_BACKWARD_MAX, 0, -100);
+    if (isRightFootWalking)
+      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 2, 0, 100);
     else
-      left_x = map(chestAccel->getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
+      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 2, 0, 100);
+    ychanged = true;
+  }
+
+  //bending control
+  else if (chest->isBending())
+  {
+    delay_value = 0;
+    if (chestAccel->getRoll() < 0)
+      left_y = map(chestAccel->getRoll(), 0, CHEST_BACKWARD_MAX, 0, -100);
+    else
+      left_y = map(chestAccel->getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
 
     //calculating of right-left/horizontal movement
     if (chestAccel->getPitch() < 0)
-      left_y = map(chestAccel->getPitch(), 0, CHEST_RIGHT_MAX, 0, 100);
+      left_x = map(chestAccel->getPitch(), 0, CHEST_RIGHT_MAX, 0, 100);
     else
-      left_y = map(chestAccel->getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+      left_x = map(chestAccel->getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
+    xchanged = true;
+    ychanged = true;
   }
 
   //cruise control
-  else if ((2 + 2) == 5)
+  if (rightFoot->isCruiseControl())
   {
+    left_y = map(rightFoot->getCruiseControlPower(), 10, 25, 25, 100);
+    ychanged = true;
   }
 
-  //walking
-  else if (isRightFootWalking || isLeftFootWalking)
+  if (leftFoot->isCruiseControl())
   {
-    if (rightFoot->getWalkingPower() > leftFoot->getWalkingPower())
-      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 3, 0, 100);
-    else
-      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 3, 0, 100);
+    left_y = map(leftFoot->getCruiseControlPower(), 10, 25, 25, 100);
+    ychanged = true;
   }
 
   //side moving
-  else if (rightFoot->isSideStep())
+  if (rightFoot->isSideStep())
   {
     left_x = map(rightFoot->getSidePower(), 200, 950, 0, 100);
+    xchanged = true;
   }
 
-  else if (leftFoot->isSideStep())
+  if (leftFoot->isSideStep())
   {
     left_x = -map(leftFoot->getSidePower(), 200, 950, 0, 100);
+    xchanged = true;
   }
 
   //back moving
@@ -315,21 +328,32 @@ void translateTheMovement()
   else if (rightFoot->isStepBack())
   {
     left_y = -map(rightFoot->getStepBackPower(), 200, 850, 0, 100);
+    ychanged = true;
   }
 
   else if (leftFoot->isStepBack())
   {
     left_y = -map(leftFoot->getStepBackPower(), 200, 850, 0, 100);
+    ychanged = true;
   }
 
   //default for moving left joystick
-  else
-  {
-    left_x = 0;
-    left_y = 0;
-  }
 
-  //=========================================
+  if (!xchanged)
+    left_x = 0;
+  if (!ychanged)
+    left_y = 0;
+
+    
+    right_x = 0;
+    right_y = 0;
+
+  //if running very fast - press the button
+  if ((abs(left_x) >= 110) || (abs(left_y) >= 110))
+    left_button_state = 1;
+  else
+    left_button_state = 0;
+
   //jump
   if (chest->isJumping())
     right_button_state = 1;
@@ -367,16 +391,16 @@ void updateJoysticks()
   if (right_y < -100)
     right_y = -100;
 
-  leftJoystick.setHor(left_x);
-  leftJoystick.setVer(left_y);
+  leftJoystick.setHor(-left_x);
+  leftJoystick.setVer(-left_y);
 
   if (left_button_state == 1)
     leftJoystick.pressButton();
   else
     leftJoystick.releaseButton();
 
-  rightJoystick.setHor(left_x);
-  rightJoystick.setVer(left_y);
+  rightJoystick.setHor(right_x);
+  rightJoystick.setVer(right_y);
 
   if (right_button_state == 1)
     rightJoystick.pressButton();
