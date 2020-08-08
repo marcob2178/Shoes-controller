@@ -10,10 +10,13 @@
 
 /*  
 TODO: 
-  - bending doesn't works in cause in some problem.
-  - do not counts the another leg moving
-  - stops measure sometimes -> need to proove
 
+1) disconnecting sometimes accelerometer at the shoe
+2) walking requires more sensible behavior, we have no code problem, more understanding about the what do we need to get.
+3) left back weight sensor requires tuning, we'll tune that
+4) crouch require assembling and implementing(guess we can try this flexible things, I have an idea how to reliable detect the crouch)
+5) lateral pressure sensors work only if pressing the sensors whe shoe is flat. If i bend sideway to put pressure on the sensors, the lat moivements do not work (will check)
+6) button cause joystick drift. (not sure, but we can try. Maybe that's not fixable by hardware)
 
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
@@ -98,12 +101,12 @@ void loop()
     updateRawData();
 
     parseSerial();
-
+  
     printTheMovement();
     translateTheMovement();
 
     long time = timer - millis();
-    Serial.println(String(time));
+    //Serial.println(String(time));
   }
 }
 

@@ -38,14 +38,13 @@ public:
         if (!bno->begin())
         {
             Serial.print("Ooops, no BNO055 1 detected ... Check your wiring or I2C ADDR!");
+            return;
             while (1)
                 ;
         }
+        //bno->setExtCrystalUse(false);
         delay(500);
 
-        //bno->setExtCrystalUse(true);
-        delay(500);
-        
         calibrate();
     }
 
@@ -73,6 +72,7 @@ public:
     {
         euler = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
         linaccel = bno->getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+        delayMicroseconds(500);
     }
 };
-#endif
+#endif              

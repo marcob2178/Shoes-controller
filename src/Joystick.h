@@ -22,6 +22,10 @@
     press1 = 0;
   }
 */
+#define TYPE_PS4 1
+#define TYPE_STEAM_KNUCKLES 2
+
+#define TYPE_OF_CONTROOLER TYPE_PS4
 
 class Joystick
 {
@@ -30,7 +34,7 @@ private:
     int ver_min, ver_max, ver_middle, hor_min, hor_max, hor_middle;
     int pin_button;
 
-public:
+public: 
     void setCalibrationData(int _ver_min, int _ver_max, int _ver_middle, int _hor_min, int _hor_max, int _hor_middle)
     {
         ver_min = _ver_min;
@@ -81,12 +85,12 @@ public:
 
     void pressButton()
     {
-        digitalWrite(pin_button, LOW);
+        digitalWrite(pin_button, TYPE_OF_CONTROOLER == TYPE_STEAM_KNUCKLES ? LOW : HIGH);
     }
 
     void releaseButton()
     {
-        digitalWrite(pin_button, HIGH);
+        digitalWrite(pin_button, TYPE_OF_CONTROOLER == TYPE_STEAM_KNUCKLES ? HIGH : LOW);
     }
 
     void begin(int pin_cs, int _pin_button)
