@@ -21,6 +21,8 @@ TODO:
 STACK:
 - usb injection (https://github.com/TrueOpenVR/TrueOpenVR-Drivers)  
 - GUI for smoother configuration of the system
+
+- the sensitivity of the chest when walking/running with feet, can be changed and made less sensitive compared to how the chest works in normal condition when using only chest for moving
 */
 
 void printAcceleration();
@@ -259,21 +261,24 @@ void translateWalkingWithDelay()
     else if (curLeft)
       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 10, 0, 100);
 
-    /*
-    18      0       0       1       40      27      40      
-    18      0       0       1       40      35      40      
-    18      0       0       1       40      38      40      
-    18      0       0       1       38      38      40      
-    18      0       0       1       38      38      40      
-    18      0       0       1       38      38      40      
-    18      0       0       1       38      38      40      
-    18      0       0       1       40      44      40 
-    
+    /*  
+    6       1       429     1       46      0       46
+    7       0       0       1       46      12      46
+    7       0       0       1       46      29      46
+    7       0       0       1       29      29      46
+    7       0       0       1       46      29      46
+    7       0       0       1       46      29      46
+    7       0       0       1       29      29      46
+    7       0       0       1       46      34      46
+    7       0       0       1       34      34      46
+    7       1       33      1       34      0       34
+    7       1       66      1       34      0       34
     */
 
     if (left_y < prevAccel)
     {
       left_y = prevAccel;
+      lastStepAccel = prevAccel;
     }
     else if (left_y >= prevAccel)
     {
@@ -343,7 +348,6 @@ void translateCruiseControl()
     left_y = map(rightFoot->getCruiseControlPower(), 10, 25, 25, 100);
     ychanged = true;
   }
-
   else if (leftFoot->isCruiseControl())
   {
     left_y = map(leftFoot->getCruiseControlPower(), 10, 25, 25, 100);
@@ -358,7 +362,6 @@ void translateSideMoving()
     left_x = map(rightFoot->getSidePower(), 200, 950, 0, 100);
     xchanged = true;
   }
-
   else if (leftFoot->isSideStep())
   {
     left_x = -map(leftFoot->getSidePower(), 200, 950, 0, 100);
@@ -385,19 +388,16 @@ void translateTheMovement()
 {
   xchanged = false;
   ychanged = false;
+  //bending control
+  translateBending();
   //walking
   translateWalkingWithDelay();
-
-  //bending control
-  // translateBending();
-
   //cruise control
-  //translateCruiseControl();
-
+  translateCruiseControl();
   //side moving
-  //translateSideMoving();
+  translateSideMoving();
   //back moving
-  // translateBackMoving();
+  translateBackMoving();
 
   //default for moving left joystick
 
