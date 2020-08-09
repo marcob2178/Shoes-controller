@@ -45,7 +45,6 @@ public:
 
     bool isWalking()
     {
-        isRStepDone = false;
         rCurStepState = -accel->getRoll();
         //  calculate duration of step
 
@@ -57,17 +56,11 @@ public:
 
         if ((rCurStepState < FEET_ANGLE) && (rPrevStepState >= FEET_ANGLE))
         {
-            isRStepDone = true;
-
             rMovementCount = 0;
             rTimeCounter = 0;
         }
         rPrevStepState = rCurStepState;
-
         return rTimeCounter > 0;
-
-        //  then we need process the acceleration data througth the "moving average algorithm" for 16 values
-        //  after that we measure the acceleration power and calculate step power
     }
 
     int getStepBackPower()

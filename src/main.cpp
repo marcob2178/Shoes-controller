@@ -101,7 +101,7 @@ void loop()
     updateRawData();
 
     parseSerial();
-  
+
     printTheMovement();
     translateTheMovement();
 
@@ -201,78 +201,18 @@ int left_x, left_y;
 int left_button_state;
 int right_x, right_y;
 int right_button_state;
-
-void translateBending()
-{
-  //Serial.print("body angle is:\t" + String(chestAccel->getPitch()) + "\t");
-  //Serial.print(String(chestAccel->getRoll()) + "\t");
-
-  // //calculating of forward-backward/vertical movement
-  // if (chestAccel->getRoll() < 0)
-  // {
-  //   coor_x = map(chestAccel->getRoll(), 0, CHEST_BACKWARD_MAX, 0, -100);
-  // }
-  // else
-  //   coor_x = map(chestAccel->getRoll(), 0, -CHEST_FORWARD_MAX, 0, 100);
-
-  // if (coor_x > 100)
-  //   coor_x = 100;
-  // if (coor_x < -100)
-  //   coor_x = -100;
-
-  // //calculating of right-left/horizontal movement
-  // if (chestAccel->getPitch() < 0)
-  //   coor_y = map(chestAccel->getPitch(), 0, CHEST_RIGHT_MAX, 0, 100);
-  // else
-  //   coor_y = map(chestAccel->getPitch(), 0, -CHEST_LEFT_MAX, 0, -100);
-
-  // if (coor_y > 100)
-  //   coor_y = 100;
-  // if (coor_y < -100)
-  //   coor_y = -100;
-
-  // coor_x = chest->getBendingPower() * 3 * cos(chest->getBendingDirection() / 57.297469);
-  // coor_y = chest->getBendingPower() * 3 * sin(chest->getBendingDirection() / 57.297469);
-
-  // if (coor_x > 100)
-  //   coor_x = 100;
-  // if (coor_x < -100)
-  //   coor_x = -100;
-
-  // if (coor_y > 100)
-  //   coor_y = 100;
-  // if (coor_y < -100)
-  //   coor_y = -100;
-
-  // if (coor_x >= CHEST_FORWARD_MIN)
-  //   joystickForMove.setVer(coor_x);
-  // else if (coor_x <= -CHEST_BACKWARD_MIN)
-  //   joystickForMove.setVer(coor_x);
-  // else
-  //   joystickForMove.setVer(0);
-
-  // if (coor_y >= CHEST_LEFT_MIN)
-  //   joystickForMove.setHor(coor_y);
-  // else if (coor_y <= -CHEST_RIGHT_MIN)
-  //   joystickForMove.setHor(coor_y);
-  // else
-  //   joystickForMove.setHor(0);
-
-  // Serial.print(String(coor_x) + "\t");
-  // Serial.println(String(coor_y) + "\t");
-}
-
 int delay_value = 0;
 
-void translateTheMovement()
+bool xchanged = false;
+bool ychanged = false;
+
+//==============================================================================
+
+void translateWalkingOLD()
 {
   bool isRightFootWalking = rightFoot->isWalking();
   bool isLeftFootWalking = leftFoot->isWalking();
 
-  bool xchanged = false;
-  bool ychanged = false;
-
-  //walking
   if (isRightFootWalking || isLeftFootWalking)
   {
     if (isRightFootWalking)
@@ -281,9 +221,104 @@ void translateTheMovement()
       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 2, 0, 100);
     ychanged = true;
   }
+}
 
-  //bending control
-  else if (chest->isBending())
+bool lastLeft = false;
+bool lastRight = false;
+int steps = 0;
+int step_timer = 0;
+bool isWalk = false;
+bool stepChanged = false;
+int lastStepAccel = 0;
+int prevAccel = 0;
+
+void translateWalkingWithDelay()
+{
+  bool curLeft = leftFoot->isWalking();
+  bool curRight = rightFoot->isWalking();
+
+  if ((!curLeft && lastLeft) || (!curRight && lastRight))
+  {
+    stepChanged = true;
+    lastStepAccel = prevAccel;
+    prevAccel = 0;
+  }
+
+  if (curRight || curLeft)
+  {
+    //=============================
+    //count steps
+    stepChanged = false;
+    if ((curLeft && !lastLeft) || (curRight && !lastRight))
+      steps++;
+
+    step_timer = 0;
+    //=============================
+    if (curRight)
+      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 10, 0, 100);
+    else if (curLeft)
+      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 10, 0, 100);
+
+    /*
+    18      0       0       1       40      27      40      
+    18      0       0       1       40      35      40      
+    18      0       0       1       40      38      40      
+    18      0       0       1       38      38      40      
+    18      0       0       1       38      38      40      
+    18      0       0       1       38      38      40      
+    18      0       0       1       38      38      40      
+    18      0       0       1       40      44      40 
+    
+    */
+
+    if (left_y < prevAccel)
+    {
+      left_y = prevAccel;
+    }
+    else if (left_y >= prevAccel)
+    {
+      prevAccel = left_y;
+      if (prevAccel < lastStepAccel)
+        left_y = lastStepAccel;
+      else
+        left_y = prevAccel;
+    }
+
+    ychanged = true;
+  }
+
+  isWalk = steps > 1;
+
+  if ((steps > 0) && stepChanged)
+  {
+    left_y = lastStepAccel;
+    ychanged = true;
+    step_timer += 33;
+    if (step_timer > 1000)
+    {
+      step_timer = 0;
+      steps = 0;
+      stepChanged = false;
+    }
+  }
+
+  lastLeft = curLeft;
+  lastRight = curRight;
+
+  Serial.print(steps + String("\t"));
+  Serial.print(stepChanged + String("\t"));
+  Serial.print(step_timer + String("\t"));
+  Serial.print(isWalk + String("\t"));
+  Serial.print(left_y + String("\t"));
+  Serial.print(prevAccel + String("\t"));
+  Serial.println(lastStepAccel + String("\t"));
+}
+
+//==============================================================================
+
+void translateBending()
+{
+  if (chest->isBending())
   {
     delay_value = 0;
     if (chestAccel->getRoll() < 0)
@@ -299,36 +334,41 @@ void translateTheMovement()
     xchanged = true;
     ychanged = true;
   }
+}
 
-  //cruise control
+void translateCruiseControl()
+{
   if (rightFoot->isCruiseControl())
   {
     left_y = map(rightFoot->getCruiseControlPower(), 10, 25, 25, 100);
     ychanged = true;
   }
 
-  if (leftFoot->isCruiseControl())
+  else if (leftFoot->isCruiseControl())
   {
     left_y = map(leftFoot->getCruiseControlPower(), 10, 25, 25, 100);
     ychanged = true;
   }
+}
 
-  //side moving
+void translateSideMoving()
+{
   if (rightFoot->isSideStep())
   {
     left_x = map(rightFoot->getSidePower(), 200, 950, 0, 100);
     xchanged = true;
   }
 
-  if (leftFoot->isSideStep())
+  else if (leftFoot->isSideStep())
   {
     left_x = -map(leftFoot->getSidePower(), 200, 950, 0, 100);
     xchanged = true;
   }
+}
 
-  //back moving
-
-  else if (rightFoot->isStepBack())
+void translateBackMoving()
+{
+  if (rightFoot->isStepBack())
   {
     left_y = -map(rightFoot->getStepBackPower(), 200, 850, 0, 100);
     ychanged = true;
@@ -339,6 +379,25 @@ void translateTheMovement()
     left_y = -map(leftFoot->getStepBackPower(), 200, 850, 0, 100);
     ychanged = true;
   }
+}
+
+void translateTheMovement()
+{
+  xchanged = false;
+  ychanged = false;
+  //walking
+  translateWalkingWithDelay();
+
+  //bending control
+  // translateBending();
+
+  //cruise control
+  //translateCruiseControl();
+
+  //side moving
+  //translateSideMoving();
+  //back moving
+  // translateBackMoving();
 
   //default for moving left joystick
 
@@ -347,9 +406,8 @@ void translateTheMovement()
   if (!ychanged)
     left_y = 0;
 
-    
-    right_x = 0;
-    right_y = 0;
+  right_x = 0;
+  right_y = 0;
 
   //if running very fast - press the button
   if ((abs(left_x) >= 110) || (abs(left_y) >= 110))
@@ -520,7 +578,6 @@ void printTheMovement()
     Serial.print("\tCruise");
     if (leftFoot->isCruiseControl())
       Serial.print(String("\t") + String(leftFoot->getCruiseControlPower()));
-
     else
       Serial.print("\tNothing\t");
 
