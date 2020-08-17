@@ -71,8 +71,9 @@ public:
     void update()
     {
         euler = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
+        delayMicroseconds(1000);
         linaccel = bno->getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-        delayMicroseconds(500);
+        delayMicroseconds(1000);
     }
 };
 #endif              

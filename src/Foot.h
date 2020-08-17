@@ -33,6 +33,16 @@ public:
         return (rMovementCount / (rTimeCounter / 33.0));
     }
 
+     double getRawPower()
+    {
+        return rMovementCount;
+    }
+
+    long getStepTime()
+    {
+        return rTimeCounter;
+    }
+
     bool isCruiseControl()
     {
         return rTimeCounter > 1000;

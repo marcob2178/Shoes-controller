@@ -99,16 +99,15 @@ void loop()
 {
   if (millis() > timer)
   {
-    timer = millis() + 33;
+    timer = millis() + CALCULATING_PERIOD;
     updateRawData();
 
-    parseSerial();
+    //long time = CALCULATING_PERIOD - (timer - millis());
+    //Serial.println(String(time));
 
+    parseSerial();
     printTheMovement();
     translateTheMovement();
-
-    long time = timer - millis();
-    //Serial.println(String(time));
   }
 }
 
@@ -208,23 +207,126 @@ int delay_value = 0;
 bool xchanged = false;
 bool ychanged = false;
 
-//==============================================================================
+//=======================================================================================================================
+// void translateWalkingOLD()
+// {
+//   bool isRightFootWalking = rightFoot->isWalking();
+//   bool isLeftFootWalking = leftFoot->isWalking();
 
-void translateWalkingOLD()
-{
-  bool isRightFootWalking = rightFoot->isWalking();
-  bool isLeftFootWalking = leftFoot->isWalking();
+//   if (isRightFootWalking || isLeftFootWalking)
+//   {
+//     if (isRightFootWalking)
+//       left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 2, 0, 100);
+//     else
+//       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 2, 0, 100);
+//     ychanged = true;
+//   }
+// }
 
-  if (isRightFootWalking || isLeftFootWalking)
-  {
-    if (isRightFootWalking)
-      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 2, 0, 100);
-    else
-      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 2, 0, 100);
-    ychanged = true;
-  }
-}
+//=======================================================================================================================
 
+// bool lastLeft = false;
+// bool lastRight = false;
+// int steps = 0;
+// int step_timer = 0;
+// bool isWalk = false;
+// bool stepChanged = false;
+// int lastStepAccel = 0;
+// int prevAccel = 0;
+
+// void translateWalkingWithDelay()
+// {
+//   bool curLeft = leftFoot->isWalking();
+//   bool curRight = rightFoot->isWalking();
+
+//   if ((!curLeft && lastLeft) || (!curRight && lastRight))
+//   {
+//     stepChanged = true;
+//     lastStepAccel = prevAccel;
+//     prevAccel = 0;
+//   }
+
+//   if (curRight || curLeft)
+//   {
+//     //=============================
+//     //count steps
+//     stepChanged = false;
+//     if ((curLeft && !lastLeft) || (curRight && !lastRight))
+//       steps++;
+
+//     step_timer = 0;
+//     //=============================
+//     if (curRight)
+//       left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 10, 0, 100);
+//     else if (curLeft)
+//       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 10, 0, 100);
+
+//     /*
+//     6       1       429     1       46      0       46
+//     7       0       0       1       46      12      46
+//     7       0       0       1       46      29      46
+//     7       0       0       1       29      29      46
+//     7       0       0       1       46      29      46
+//     7       0       0       1       46      29      46
+//     7       0       0       1       29      29      46
+//     7       0       0       1       46      34      46
+//     7       0       0       1       34      34      46
+//     7       1       33      1       34      0       34
+//     7       1       66      1       34      0       34
+//     */
+
+//     if (left_y < prevAccel)
+//     {
+//       left_y = prevAccel;
+//       lastStepAccel = prevAccel;
+//     }
+//     else if (left_y >= prevAccel)
+//     {
+//       prevAccel = left_y;
+//       if (prevAccel < lastStepAccel)
+//         left_y = lastStepAccel;
+//       else
+//         left_y = prevAccel;
+//     }
+
+//     ychanged = true;
+//   }
+
+//   isWalk = steps > 1;
+
+//   if ((steps > 0) && stepChanged)
+//   {
+//     left_y = lastStepAccel;
+//     ychanged = true;
+//     step_timer += CALCULATING_PERIOD;
+//     if (step_timer > 1000)
+//     {
+//       step_timer = 0;
+//       steps = 0;
+//       stepChanged = false;
+//     }
+//   }
+
+//   lastLeft = curLeft;
+//   lastRight = curRight;
+
+//   // Serial.print(steps + String("\t"));
+//   // Serial.print(stepChanged + String("\t"));
+//   // Serial.print(step_timer + String("\t"));
+//   // Serial.print(isWalk + String("\t"));
+//   // Serial.print(left_y + String("\t"));
+//   // Serial.print(prevAccel + String("\t"));
+//   // Serial.println(lastStepAccel + String("\t"));
+// }
+
+//=======================================================================================================================
+#define TYPE_NOT_WALKING 0
+#define TYPE_WALKING 1
+#define TYPE_RUNNING 2
+
+int walkType = TYPE_NOT_WALKING;
+int prevRightPower = 0;
+int prevLeftPower = 0;
 bool lastLeft = false;
 bool lastRight = false;
 int steps = 0;
@@ -234,8 +336,11 @@ bool stepChanged = false;
 int lastStepAccel = 0;
 int prevAccel = 0;
 
-void translateWalkingWithDelay()
+long timeBetweenSteps = 0;
+
+void translateWalkingWithTimings()
 {
+
   bool curLeft = leftFoot->isWalking();
   bool curRight = rightFoot->isWalking();
 
@@ -244,6 +349,21 @@ void translateWalkingWithDelay()
     stepChanged = true;
     lastStepAccel = prevAccel;
     prevAccel = 0;
+
+    if (lastRight)
+    {
+      if (prevRightPower >= 45)
+        walkType = TYPE_RUNNING;
+      else if (prevRightPower > 0)
+        walkType = TYPE_WALKING;
+    }
+    else if (lastLeft)
+    {
+      if (prevLeftPower >= 45)
+        walkType = TYPE_RUNNING;
+      else if (prevLeftPower > 0)
+        walkType = TYPE_WALKING;
+    }
   }
 
   if (curRight || curLeft)
@@ -254,72 +374,86 @@ void translateWalkingWithDelay()
     if ((curLeft && !lastLeft) || (curRight && !lastRight))
       steps++;
 
+    prevRightPower = rightFoot->getRawPower();
+    prevLeftPower = leftFoot->getRawPower();
+
     step_timer = 0;
-    //=============================
-    if (curRight)
-      left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 10, 0, 100);
-    else if (curLeft)
-      left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 10, 0, 100);
-
-    /*  
-    6       1       429     1       46      0       46
-    7       0       0       1       46      12      46
-    7       0       0       1       46      29      46
-    7       0       0       1       29      29      46
-    7       0       0       1       46      29      46
-    7       0       0       1       46      29      46
-    7       0       0       1       29      29      46
-    7       0       0       1       46      34      46
-    7       0       0       1       34      34      46
-    7       1       33      1       34      0       34
-    7       1       66      1       34      0       34
-    */
-
-    if (left_y < prevAccel)
-    {
-      left_y = prevAccel;
-      lastStepAccel = prevAccel;
-    }
-    else if (left_y >= prevAccel)
-    {
-      prevAccel = left_y;
-      if (prevAccel < lastStepAccel)
-        left_y = lastStepAccel;
-      else
-        left_y = prevAccel;
-    }
-
-    ychanged = true;
   }
 
   isWalk = steps > 1;
 
+  //=============================
   if ((steps > 0) && stepChanged)
   {
     left_y = lastStepAccel;
     ychanged = true;
-    step_timer += 33;
+    step_timer += CALCULATING_PERIOD;
     if (step_timer > 1000)
     {
       step_timer = 0;
       steps = 0;
       stepChanged = false;
+
+      walkType = TYPE_NOT_WALKING;
     }
   }
 
   lastLeft = curLeft;
   lastRight = curRight;
 
-  Serial.print(steps + String("\t"));
-  Serial.print(stepChanged + String("\t"));
-  Serial.print(step_timer + String("\t"));
+  //=============================
+
+  //   1) is activatedby walking only
+  // 2) is activated by walking and chest bent. and the more I bent the chest, the more or less the + moves.
+  // 3) is activated by running nad maybe a fixed bigget angle of bent of the chest?
+
+  //=============================
+
+  if (isWalk)
+    switch (walkType)
+    {
+      // case TYPE_NOT_WALKING:
+      //   left_y = 0;
+      //   break;
+
+    case TYPE_WALKING:
+      if (chestAccel->getRoll() < -8)
+      {
+        left_y = ((chestAccel->getRoll()) * -5);
+        ychanged = true;
+      }
+      else
+      {
+        left_y = 30;
+        ychanged = true;
+      }
+      break;
+
+    case TYPE_RUNNING:
+
+      left_y = 110;
+      ychanged = true;
+      break;
+    }
+
+  Serial.print(rightFoot->getStepTime() + String("\t"));
+  Serial.print(rightFoot->getRawPower() + String("\t"));
+  Serial.print(leftFoot->getStepTime() + String("\t"));
+  Serial.print(leftFoot->getRawPower() + String("\t"));
+  Serial.print(chestAccel->getRoll()+ String("\t"));
+
+
   Serial.print(isWalk + String("\t"));
-  Serial.print(left_y + String("\t"));
-  Serial.print(prevAccel + String("\t"));
-  Serial.println(lastStepAccel + String("\t"));
+  Serial.println(walkType);
+
+  // Serial.print(steps + String("\t"));
+  // Serial.print(stepChanged + String("\t"));
+  // Serial.print(step_timer + String("\t"));
+  // Serial.print(prevAccel + String("\t"));
+  // Serial.println(lastStepAccel + String("\t"));
 }
 
-//==============================================================================
+//=======================================================================================================================
 
 void translateBending()
 {
@@ -389,9 +523,9 @@ void translateTheMovement()
   xchanged = false;
   ychanged = false;
   //bending control
-  translateBending();
+  //translateBending();
   //walking
-  translateWalkingWithDelay();
+  translateWalkingWithTimings();
   //cruise control
   translateCruiseControl();
   //side moving
