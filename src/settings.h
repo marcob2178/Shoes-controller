@@ -32,7 +32,7 @@
 //  THRESHOLDS for moving recognition 
 //========================================================================
 
-#define CALCULATING_PERIOD 33
+#define CALCULATING_PERIOD 10
 #define FEET_ANGLE 10
 
 //no negative values, use absolute

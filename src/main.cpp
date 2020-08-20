@@ -4,7 +4,6 @@
 #include <Accelerometer.h>
 #include <ChestSensors.h>
 #include <WeightSensor.h>
-
 #include <Chest.h>
 #include <Foot.h>
 
@@ -24,6 +23,17 @@ STACK:
 
 - the sensitivity of the chest when walking/running with feet, can be changed and made less sensitive compared to how the chest works in normal condition when using only chest for moving
 */
+
+#define NO_OUTPUT 0
+#define RIGHT_SHOE_OUTPUT 1
+#define LEFT_SHOE_OUTPUT 2
+#define CHEST_OUTPUT 3
+#define MOVEMENT_CHEST_OUTPUT 4
+#define MOVEMENT_RIGHT_OUTPUT 5
+#define MOVEMENT_LEFT_OUTPUT 6
+#define MOVEMENT_TRANSLATING_OUTPUT 7
+#define TIMING_OUTPUT 8
+int currentOutput = 0;
 
 void printAcceleration();
 void printRawValues();
@@ -69,7 +79,7 @@ void setup()
   rightFoot = new Foot(rightShoeAccel, rightSideFoot, rightBackFoot);
   leftFoot = new Foot(leftShoeAccel, leftSideFoot, leftBackFoot);
 
-  delay(1000);
+  delay(200);
 
   leftJoystick.begin(POT_0_CS, LEFT_BUTTON_PIN);
   rightJoystick.begin(POT_1_CS, RIGHT_BUTTON_PIN);
@@ -79,7 +89,9 @@ void setup()
                                    VERTICAL_MIN, VERTICAL_MAX, VERTICAL_MIDDLE);
 
   rightShoeAccel->begin();
+  delay(200);
   leftShoeAccel->begin();
+  delay(200);
 
   Serial.println("Calibrating");
   unsigned long timer = millis();
@@ -102,8 +114,11 @@ void loop()
     timer = millis() + CALCULATING_PERIOD;
     updateRawData();
 
-    //long time = CALCULATING_PERIOD - (timer - millis());
-    //Serial.println(String(time));
+    if (currentOutput == TIMING_OUTPUT)
+    {
+      long time = CALCULATING_PERIOD - (timer - millis());
+      Serial.println(String(time));
+    }
 
     parseSerial();
     printTheMovement();
@@ -120,17 +135,6 @@ void loop()
 //=====================================================================
 //  Serial Controller
 //=====================================================================
-
-#define NO_OUTPUT 0
-#define RIGHT_SHOE_OUTPUT 1
-#define LEFT_SHOE_OUTPUT 2
-#define CHEST_OUTPUT 3
-#define MOVEMENT_CHEST_OUTPUT 4
-#define MOVEMENT_RIGHT_OUTPUT 5
-#define MOVEMENT_LEFT_OUTPUT 6
-#define MOVEMENT_TRANSLATING_OUTPUT 7
-
-int currentOutput = 0;
 
 void parseSerial()
 {
@@ -153,6 +157,8 @@ void parseSerial()
       currentOutput = NO_OUTPUT;
     if (mess == 't')
       currentOutput = MOVEMENT_TRANSLATING_OUTPUT;
+    if (mess == 'u')
+      currentOutput = TIMING_OUTPUT;
   }
 }
 
@@ -208,23 +214,13 @@ bool xchanged = false;
 bool ychanged = false;
 
 //=======================================================================================================================
-// void translateWalkingOLD()
-// {
-//   bool isRightFootWalking = rightFoot->isWalking();
-//   bool isLeftFootWalking = leftFoot->isWalking();
+// #define TYPE_NOT_WALKING 0
+// #define TYPE_WALKING 1
+// #define TYPE_RUNNING 2
 
-//   if (isRightFootWalking || isLeftFootWalking)
-//   {
-//     if (isRightFootWalking)
-//       left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 2, 0, 100);
-//     else
-//       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 2, 0, 100);
-//     ychanged = true;
-//   }
-// }
-
-//=======================================================================================================================
-
+// int walkType = TYPE_NOT_WALKING;
+// int prevRightTime = 0;
+// int prevLeftTime = 0;
 // bool lastLeft = false;
 // bool lastRight = false;
 // int steps = 0;
@@ -234,8 +230,12 @@ bool ychanged = false;
 // int lastStepAccel = 0;
 // int prevAccel = 0;
 
-// void translateWalkingWithDelay()
+// long timeBetweenSteps = 0;
+// long stepsTimer = 0;
+
+// void translateWalkingWithTimings()
 // {
+
 //   bool curLeft = leftFoot->isWalking();
 //   bool curRight = rightFoot->isWalking();
 
@@ -244,6 +244,23 @@ bool ychanged = false;
 //     stepChanged = true;
 //     lastStepAccel = prevAccel;
 //     prevAccel = 0;
+
+//     // if (lastRight)
+//     //   timeBetweenSteps = prevRightTime;
+//     // else if (lastLeft)
+//     //   timeBetweenSteps = prevLeftTime;
+
+//     if (isWalk)
+//     {
+
+//       timeBetweenSteps = millis() - stepsTimer;
+//       if (timeBetweenSteps > 250)
+//         walkType = TYPE_WALKING;
+//       else if (timeBetweenSteps <= 250)
+//         walkType = TYPE_RUNNING;
+//     }
+
+//     stepsTimer = millis();
 //   }
 
 //   if (curRight || curLeft)
@@ -254,46 +271,15 @@ bool ychanged = false;
 //     if ((curLeft && !lastLeft) || (curRight && !lastRight))
 //       steps++;
 
+//     prevRightTime = rightFoot->getStepTime();
+//     prevLeftTime = leftFoot->getStepTime();
+
 //     step_timer = 0;
-//     //=============================
-//     if (curRight)
-//       left_y = Foot::mapDouble(rightFoot->getWalkingPower(), 0, 10, 0, 100);
-//     else if (curLeft)
-//       left_y = Foot::mapDouble(leftFoot->getWalkingPower(), 0, 10, 0, 100);
-
-//     /*
-//     6       1       429     1       46      0       46
-//     7       0       0       1       46      12      46
-//     7       0       0       1       46      29      46
-//     7       0       0       1       29      29      46
-//     7       0       0       1       46      29      46
-//     7       0       0       1       46      29      46
-//     7       0       0       1       29      29      46
-//     7       0       0       1       46      34      46
-//     7       0       0       1       34      34      46
-//     7       1       33      1       34      0       34
-//     7       1       66      1       34      0       34
-//     */
-
-//     if (left_y < prevAccel)
-//     {
-//       left_y = prevAccel;
-//       lastStepAccel = prevAccel;
-//     }
-//     else if (left_y >= prevAccel)
-//     {
-//       prevAccel = left_y;
-//       if (prevAccel < lastStepAccel)
-//         left_y = lastStepAccel;
-//       else
-//         left_y = prevAccel;
-//     }
-
-//     ychanged = true;
 //   }
 
 //   isWalk = steps > 1;
 
+//   //=============================
 //   if ((steps > 0) && stepChanged)
 //   {
 //     left_y = lastStepAccel;
@@ -304,17 +290,72 @@ bool ychanged = false;
 //       step_timer = 0;
 //       steps = 0;
 //       stepChanged = false;
+//       timeBetweenSteps = 0;
+//       walkType = TYPE_NOT_WALKING;
 //     }
 //   }
 
 //   lastLeft = curLeft;
 //   lastRight = curRight;
 
+//   //=============================
+
+//   // 1) is activatedby walking only
+//   // 2) is activated by walking and chest bent. and the more I bent the chest, the more or less the + moves.
+//   // 3) is activated by running nad maybe a fixed bigget angle of bent of the chest?
+
+//   //=============================
+
+//   if (isWalk)
+//   {
+//     if (timeBetweenSteps > 0 && timeBetweenSteps <= 400)
+//       left_y = 110;
+//     else if (timeBetweenSteps > 400 && timeBetweenSteps <= 600)
+//       left_y = 90;
+//     else if (timeBetweenSteps > 600 && timeBetweenSteps <= 800)
+//       left_y = 60;
+//     else if (timeBetweenSteps > 800 && timeBetweenSteps < 1000)
+//       left_y = 30;
+
+//     ychanged = true;
+
+//     // switch (walkType)
+//     // {
+//     // case TYPE_WALKING:
+//     //   if (chestAccel->getRoll() < -8)
+//     //   {
+//     //     left_y = ((chestAccel->getRoll()) * -3);
+//     //     ychanged = true;
+//     //   }
+//     //   else
+//     //   {
+//     //     left_y = 30;
+//     //     ychanged = true;
+//     //   }
+//     //   break;
+
+//     // case TYPE_RUNNING:
+
+//     //   left_y = 110;
+//     //   ychanged = true;
+//     //   break;
+//     // }
+//   }
+
+//   // Serial.print(rightFoot->getStepTime() + String("\t"));
+//   // Serial.print(rightFoot->getRawPower() + String("\t"));
+//   // Serial.print(leftFoot->getStepTime() + String("\t"));
+//   // Serial.print(leftFoot->getRawPower() + String("\t"));
+//   // Serial.print(chestAccel->getRoll() + String("\t"));
+
+//   // Serial.print(isWalk + String("\t"));
+//   // Serial.print(walkType + String("\t"));
+//   // Serial.print(left_y + String("\t"));
+//   // Serial.println(timeBetweenSteps);
+
 //   // Serial.print(steps + String("\t"));
 //   // Serial.print(stepChanged + String("\t"));
 //   // Serial.print(step_timer + String("\t"));
-//   // Serial.print(isWalk + String("\t"));
-//   // Serial.print(left_y + String("\t"));
 //   // Serial.print(prevAccel + String("\t"));
 //   // Serial.println(lastStepAccel + String("\t"));
 // }
@@ -325,8 +366,8 @@ bool ychanged = false;
 #define TYPE_RUNNING 2
 
 int walkType = TYPE_NOT_WALKING;
-int prevRightPower = 0;
-int prevLeftPower = 0;
+double prevRightPower = 0;
+double prevLeftPower = 0;
 bool lastLeft = false;
 bool lastRight = false;
 int steps = 0;
@@ -334,11 +375,8 @@ int step_timer = 0;
 bool isWalk = false;
 bool stepChanged = false;
 int lastStepAccel = 0;
-int prevAccel = 0;
 
-long timeBetweenSteps = 0;
-
-void translateWalkingWithTimings()
+void translateWalkingWithAcceleration()
 {
 
   bool curLeft = leftFoot->isWalking();
@@ -346,24 +384,15 @@ void translateWalkingWithTimings()
 
   if ((!curLeft && lastLeft) || (!curRight && lastRight))
   {
-    stepChanged = true;
-    lastStepAccel = prevAccel;
-    prevAccel = 0;
-
     if (lastRight)
-    {
-      if (prevRightPower >= 45)
-        walkType = TYPE_RUNNING;
-      else if (prevRightPower > 0)
-        walkType = TYPE_WALKING;
-    }
+      lastStepAccel = prevRightPower * 20;
     else if (lastLeft)
-    {
-      if (prevLeftPower >= 45)
-        walkType = TYPE_RUNNING;
-      else if (prevLeftPower > 0)
-        walkType = TYPE_WALKING;
-    }
+      lastStepAccel = prevLeftPower * 20;
+
+    // lastStepAccel = left_y;
+    //ychanged = true;
+
+    stepChanged = true;
   }
 
   if (curRight || curLeft)
@@ -374,8 +403,8 @@ void translateWalkingWithTimings()
     if ((curLeft && !lastLeft) || (curRight && !lastRight))
       steps++;
 
-    prevRightPower = rightFoot->getRawPower();
-    prevLeftPower = leftFoot->getRawPower();
+    prevRightPower = rightFoot->getWalkingPower();
+    prevLeftPower = leftFoot->getWalkingPower();
 
     step_timer = 0;
   }
@@ -383,7 +412,7 @@ void translateWalkingWithTimings()
   isWalk = steps > 1;
 
   //=============================
-  if ((steps > 0) && stepChanged)
+  if ((steps > 0))
   {
     left_y = lastStepAccel;
     ychanged = true;
@@ -393,7 +422,6 @@ void translateWalkingWithTimings()
       step_timer = 0;
       steps = 0;
       stepChanged = false;
-
       walkType = TYPE_NOT_WALKING;
     }
   }
@@ -403,56 +431,28 @@ void translateWalkingWithTimings()
 
   //=============================
 
-  //   1) is activatedby walking only
-  // 2) is activated by walking and chest bent. and the more I bent the chest, the more or less the + moves.
-  // 3) is activated by running nad maybe a fixed bigget angle of bent of the chest?
-
-  //=============================
-
-  if (isWalk)
-    switch (walkType)
-    {
-      // case TYPE_NOT_WALKING:
-      //   left_y = 0;
-      //   break;
-
-    case TYPE_WALKING:
-      if (chestAccel->getRoll() < -8)
-      {
-        left_y = ((chestAccel->getRoll()) * -5);
-        ychanged = true;
-      }
-      else
-      {
-        left_y = 30;
-        ychanged = true;
-      }
-      break;
-
-    case TYPE_RUNNING:
-
-      left_y = 110;
-      ychanged = true;
-      break;
-    }
-
-  Serial.print(rightFoot->getStepTime() + String("\t"));
-  Serial.print(rightFoot->getRawPower() + String("\t"));
-  Serial.print(leftFoot->getStepTime() + String("\t"));
-  Serial.print(leftFoot->getRawPower() + String("\t"));
-  Serial.print(chestAccel->getRoll()+ String("\t"));
-
+  // Serial.print(rightFoot->getStepTime() + String("\t"));
+  // Serial.print(rightFoot->getRawPower() + String("\t"));
+  Serial.print(prevRightPower + String("\t"));
+  // Serial.print(leftFoot->getStepTime() + String("\t"));
+  // Serial.print(leftFoot->getRawPower() + String("\t"));
+  Serial.print(prevLeftPower + String("\t"));
 
   Serial.print(isWalk + String("\t"));
-  Serial.println(walkType);
+
+  // Serial.print(isWalk + String("\t"));
+  // Serial.print(walkType + String("\t"));
+  Serial.print(left_y + String("\t"));
+  // Serial.print(timeBetweenSteps);
 
   // Serial.print(steps + String("\t"));
   // Serial.print(stepChanged + String("\t"));
   // Serial.print(step_timer + String("\t"));
   // Serial.print(prevAccel + String("\t"));
-  // Serial.println(lastStepAccel + String("\t"));
-}
+  // Serial.print(lastStepAccel + String("\t"));
 
+  Serial.println();
+}
 //=======================================================================================================================
 
 void translateBending()
@@ -525,7 +525,7 @@ void translateTheMovement()
   //bending control
   //translateBending();
   //walking
-  translateWalkingWithTimings();
+  translateWalkingWithAcceleration();
   //cruise control
   translateCruiseControl();
   //side moving

@@ -17,7 +17,7 @@ public:
     ChestSensors()
     {
         mySerial = new SoftwareSerial(3, 2);
-        mySerial->begin(9600);
+       // mySerial->begin(9600);
     }
 
     int getRoll()

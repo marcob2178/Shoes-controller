@@ -30,7 +30,7 @@ public:
 
     double getWalkingPower()
     {
-        return (rMovementCount / (rTimeCounter / 33.0));
+        return (rMovementCount / (rTimeCounter / CALCULATING_PERIOD));
     }
 
      double getRawPower()
@@ -60,7 +60,7 @@ public:
 
         if (rCurStepState >= FEET_ANGLE)
         {
-            rTimeCounter += 33;
+            rTimeCounter += CALCULATING_PERIOD;
             rMovementCount += accel->getLinAccel().z() > 0 ? accel->getLinAccel().z() : -accel->getLinAccel().z();
         }
 
