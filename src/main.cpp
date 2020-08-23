@@ -385,9 +385,12 @@ void translateWalkingWithAcceleration()
   if ((!curLeft && lastLeft) || (!curRight && lastRight))
   {
     if (lastRight)
-      lastStepAccel = prevRightPower * 20;
+      lastStepAccel = prevRightPower;
     else if (lastLeft)
-      lastStepAccel = prevLeftPower * 20;
+      lastStepAccel = prevLeftPower;
+
+    prevRightPower = 0;
+    prevLeftPower = 0;
 
     // lastStepAccel = left_y;
     //ychanged = true;
@@ -403,8 +406,8 @@ void translateWalkingWithAcceleration()
     if ((curLeft && !lastLeft) || (curRight && !lastRight))
       steps++;
 
-    prevRightPower = rightFoot->getWalkingPower();
-    prevLeftPower = leftFoot->getWalkingPower();
+    prevRightPower = rightFoot->getDistance() * 100 > prevRightPower ? rightFoot->getDistance() * 100 : prevRightPower;
+    prevLeftPower = leftFoot->getDistance() * 100 > prevLeftPower ? leftFoot->getDistance() * 100 : prevLeftPower;
 
     step_timer = 0;
   }
@@ -449,7 +452,7 @@ void translateWalkingWithAcceleration()
   // Serial.print(stepChanged + String("\t"));
   // Serial.print(step_timer + String("\t"));
   // Serial.print(prevAccel + String("\t"));
-  // Serial.print(lastStepAccel + String("\t"));
+  Serial.print(lastStepAccel + String("\t"));
 
   Serial.println();
 }

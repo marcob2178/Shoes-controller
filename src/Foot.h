@@ -17,6 +17,7 @@ private:
 
     long rTimeCounter = 0;
     double rMovementCount = 0;
+    double distance = 0;
 
 public:
     Foot(Accelerometer *_accel, WeightSensor *_sideSensor, WeightSensor *_backSensor)
@@ -33,9 +34,14 @@ public:
         return (rMovementCount / (rTimeCounter / CALCULATING_PERIOD));
     }
 
-     double getRawPower()
+    double getRawPower()
     {
         return rMovementCount;
+    }
+
+    double getDistance()
+    {
+        return distance;
     }
 
     long getStepTime()
@@ -61,13 +67,18 @@ public:
         if (rCurStepState >= FEET_ANGLE)
         {
             rTimeCounter += CALCULATING_PERIOD;
-            rMovementCount += accel->getLinAccel().z() > 0 ? accel->getLinAccel().z() : -accel->getLinAccel().z();
+            double val = accel->getLinAccel().z();
+            rMovementCount += val > 0 ? val : -val;
+
+            // distance += (0.01 * (val > 0 ? val : -val)) / 2.0f;
+            distance += (0.01 * -val ) / 2.0f;
         }
 
         if ((rCurStepState < FEET_ANGLE) && (rPrevStepState >= FEET_ANGLE))
         {
             rMovementCount = 0;
             rTimeCounter = 0;
+            distance = 0;
         }
         rPrevStepState = rCurStepState;
         return rTimeCounter > 0;
