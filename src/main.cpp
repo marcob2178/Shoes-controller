@@ -162,6 +162,114 @@ void parseSerial()
   }
 }
 
+//=================WALK DETECTION=======================
+
+//Tunable parameters - all defined for range 0-100
+float walk_sensitivity = 35; //physical movement intensity to game walking speed
+    //higher value - less motion required to move faster
+float responsiveness_coeff = 100; //how fast changes in motion would affect game walking speed
+float dead_zone = 30; //minimal non-zero motion would result in this speed, if dead_zone = 30 then
+    //walking speed of 5 would result in game action of 35
+float hysteresis_coeff = 90; //higher value results in more constant speed, but low sensitivity
+    //for speed change. Lower value results in high sensitivity to speed change, but unstable speed
+
+int use_digipot_remap = 0; //1 for on, 0 for off
+float digipot_resistance_kOhm = 50; //resistance of installed digipot
+
+//calculated parameters - don't edit
+float avg_a1 = 0;
+float avg_a2 = 0;
+float loc_max_a1 = 0;
+float loc_max_a2 = 0;
+
+float hyst_size = 20 * 0.01 * hysteresis_coeff;
+float accum_err = 0;
+
+float walk_speed_v = 0;
+float walk_speed_max = 0;
+
+float walk_speed = 0;
+
+void walk_detector()
+{
+  float ax1 = rightShoeAccel->getLinAccel().x();
+  float ay1 = rightShoeAccel->getLinAccel().y();
+  float az1 = rightShoeAccel->getLinAccel().z();
+  float ax2 = leftShoeAccel->getLinAccel().x();
+  float ay2 = leftShoeAccel->getLinAccel().y();
+  float az2 = leftShoeAccel->getLinAccel().z();
+  float a1 = sqrt(ax1*ax1 + ay1*ay1 + az1*az1);
+  float a2 = sqrt(ax2*ax2 + ay2*ay2 + az2*az2);
+
+  float avg_param = 0.7;
+  float loc_max_param = 0.99;
+  avg_a1 = avg_param*avg_a1 + (1.0 - avg_param)*a1;
+  avg_a2 = avg_param*avg_a2 + (1.0 - avg_param)*a2;
+  loc_max_a1 *= loc_max_param;
+  loc_max_a2 *= loc_max_param;
+  if(avg_a1 > loc_max_a1) loc_max_a1 = avg_a1;
+  if(avg_a2 > loc_max_a2) loc_max_a2 = avg_a2;
+  
+  if(loc_max_a1 < 2.5) loc_max_a1 = 2.5;
+  if(loc_max_a2 < 2.5) loc_max_a2 = 2.5;
+
+  if(avg_a1 < loc_max_a1*0.05 && avg_a2 < loc_max_a2*0.05)
+    walk_speed_v *= 0.9;
+
+  if(avg_a1 < loc_max_a1*0.3 && avg_a2 < loc_max_a2*0.3)
+    walk_speed_v *= 0.99;
+
+  float v_high = 0, v_low = 0;
+  if(avg_a1 > loc_max_a1*0.3 && avg_a2 < loc_max_a2*0.3)
+  {
+    v_high = avg_a1;
+    v_low = avg_a2;
+  }
+  if(avg_a1 < loc_max_a1*0.3 && avg_a2 > loc_max_a2*0.3)
+  {
+    v_high = avg_a2;
+    v_low = avg_a1;
+  }
+
+  if(v_high < 0.5 && v_low < 0.5)
+    walk_speed_v *= 0.99; //it's ok for a few frames, but not for too long
+  else
+  {
+    walk_speed_v = walk_speed_v * 0.97 + 0.03 * (v_high * 10.0 * walk_sensitivity * 0.03);
+  }
+
+  if(walk_speed_v > walk_speed_max)
+    walk_speed_max = walk_speed_v;
+
+  walk_speed_max *= (0.995 - responsiveness_coeff*0.0005);
+
+  accum_err += 0.01*(walk_speed_max - walk_speed);
+  
+  if(walk_speed_max > walk_speed + hyst_size || accum_err > 3*hyst_size)
+  {
+	walk_speed = walk_speed_max;
+    accum_err = 0;
+  }
+
+  if(walk_speed_max < walk_speed - hyst_size || accum_err < -3*hyst_size || walk_speed_max < hyst_size/2)
+  {
+	walk_speed = walk_speed_max;
+    accum_err = 0;
+  }
+
+  if(walk_speed > 120) walk_speed = 120;
+  if(walk_speed < 10) walk_speed = 0;
+  if(walk_speed > 0 && walk_speed < 2*dead_zone) walk_speed = dead_zone + walk_speed*0.5;
+
+  if(use_digipot_remap && walk_speed < 100)
+  {
+    float j_res = 4.3;
+    float d_res = digipot_resistance_kOhm / 2;
+    float tgt_res = 2.5 - walk_speed * 0.025;
+    walk_speed = (d_res - tgt_res) / d_res * 100;
+  }
+}
+
 //=====================================================================
 //  RAW data updating
 //=====================================================================
@@ -176,6 +284,8 @@ void updateRawData()
   rightBackFoot->update();
   leftSideFoot->update();
   leftBackFoot->update();
+
+  walk_detector();
 
   switch (currentOutput)
   {
@@ -529,6 +639,10 @@ void translateTheMovement()
   //translateBending();
   //walking
   translateWalkingWithAcceleration();
+
+  left_y = walk_speed;
+  ychanged = true;
+
   //cruise control
   translateCruiseControl();
   //side moving
